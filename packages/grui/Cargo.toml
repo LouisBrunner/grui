@@ -1,0 +1,8 @@
+[package]
+name = "grui"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+godot = { workspace = true }
+grui-macros = { workspace = true }
