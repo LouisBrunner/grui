@@ -26,17 +26,14 @@ fn transform_node(node: &HtmlNode) -> Result<TokenStream> {
         HtmlNode::Fragment(fragment) => transform_fragment(&fragment.children),
         HtmlNode::Text(text) => {
             let value = text.value.value();
-            Ok(quote! { grui::node::Node::text(#value) })
+            Ok(quote! { #value })
         }
         HtmlNode::RawText(raw) => {
             let value = raw.to_token_stream_string();
-            Ok(quote! { grui::node::Node::text(#value) })
+            Ok(quote! { #value })
         }
-        HtmlNode::Block(block) => {
-            let block_tokens = quote! { #block };
-            Ok(quote! { grui::node::IntoNode::into_node(#block_tokens) })
-        }
-        HtmlNode::Comment(_) => Ok(quote! { grui::node::Node::empty() }),
+        HtmlNode::Block(block) => Ok(quote! { #block }),
+        HtmlNode::Comment(_) => Ok(quote! { grui::control::empty() }),
         HtmlNode::Doctype(_) => Err(Error::new(
             Span::call_site(),
             "doctype nodes are not supported in grui templates",
@@ -50,7 +47,7 @@ fn transform_node(node: &HtmlNode) -> Result<TokenStream> {
 
 fn transform_fragment(children: &[HtmlNode]) -> Result<TokenStream> {
     let children = transform_children(children)?;
-    Ok(quote! { grui::node::Node::fragment(vec![#(#children),*]) })
+    Ok(quote! { grui::control::fragment(vec![#(#children),*]) })
 }
 
 fn transform_element(element: &HtmlElement) -> Result<TokenStream> {
@@ -65,22 +62,14 @@ fn transform_element(element: &HtmlElement) -> Result<TokenStream> {
 
 fn transform_builtin(element: &HtmlElement) -> Result<TokenStream> {
     let builder = builtin_builder(element.name())?;
-    let builder = apply_attributes(builder, element)?;
+    let mut builder = apply_attributes(builder, element)?;
     let children = transform_children(&element.children)?;
 
-    let output = match children.len() {
-        0 => quote! { grui::node::IntoNode::into_node(#builder.build()) },
-        1 => {
-            let child = &children[0];
-            quote! { grui::node::IntoNode::into_node(#builder.children(#child)) }
-        }
-        _ => {
-            let tuple = quote! { (#(#children),*) };
-            quote! { grui::node::IntoNode::into_node(#builder.children(#tuple)) }
-        }
-    };
+    if !children.is_empty() {
+        builder = quote! { #builder.children(vec![#(#children),*]) };
+    }
 
-    Ok(output)
+    Ok(quote! { #builder.build() })
 }
 
 fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
@@ -89,7 +78,7 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
 
     for attribute in element.open_tag.attributes.iter() {
         if let NodeAttribute::Attribute(attr) = attribute {
-            let key = attr_name(attr)?;
+            let key = attribute_name(attr)?;
             if key == "children" {
                 return Err(Error::new(
                     attr.span(),
@@ -114,7 +103,7 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
             let child = &children[0];
             Some(quote! { #child })
         }
-        _ => Some(quote! { grui::node::Node::fragment(vec![#(#children),*]) }),
+        _ => Some(quote! { grui::control::fragment(vec![#(#children),*]) }),
     };
 
     if let Some(children_expr) = children_expr {
@@ -127,24 +116,18 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
         }
     };
 
-    Ok(quote! { grui::node::IntoNode::into_node(#component_path(#props_literal)) })
+    Ok(quote! { #component_path(#props_literal) })
 }
 
 fn apply_attributes(mut builder: TokenStream, element: &HtmlElement) -> Result<TokenStream> {
     for attribute in element.open_tag.attributes.iter() {
         match attribute {
             NodeAttribute::Attribute(attr) => {
-                let key = attr_name(attr)?;
+                let key = attribute_name(attr)?;
                 if let Some(event) = key.strip_prefix("on:") {
                     let handler = attribute_value(attr, false)?;
-                    let event_ident = event_ident(event, attr)?;
-                    builder = quote! { #builder.on(grui::events::#event_ident, #handler) };
-                } else if key == "key" {
-                    let value = attribute_value(attr, false)?;
-                    builder = quote! { #builder.key(#value) };
-                } else if key == "text" {
-                    let value = attribute_value(attr, false)?;
-                    builder = quote! { #builder.prop("text", #value) };
+                    let event_lit = LitStr::new(event, attr.key.span());
+                    builder = quote! { #builder.on(#event_lit, #handler) };
                 } else {
                     let value = attribute_value(attr, true)?;
                     let key_lit = LitStr::new(&key, attr.key.span());
@@ -185,7 +168,7 @@ fn transform_for(element: &HtmlElement) -> Result<TokenStream> {
     for attribute in element.open_tag.attributes.iter() {
         match attribute {
             NodeAttribute::Attribute(attr) => {
-                let key = attr_name(attr)?;
+                let key = attribute_name(attr)?;
                 match key.as_str() {
                     "each" => {
                         let expr = attribute_value(attr, false)?;
@@ -237,12 +220,12 @@ fn transform_for(element: &HtmlElement) -> Result<TokenStream> {
 
     let children = transform_children(&element.children)?;
     let body = match children.len() {
-        0 => quote! { grui::node::Node::empty() },
+        0 => quote! { grui::control::empty() },
         1 => {
             let child = &children[0];
             quote! { #child }
         }
-        _ => quote! { grui::node::Node::fragment(vec![#(#children),*]) },
+        _ => quote! { grui::control::fragment(vec![#(#children),*]) },
     };
 
     let output = quote! {
@@ -296,7 +279,6 @@ fn builtin_builder(name: &NodeName) -> Result<TokenStream> {
     let builder = match lookup.as_str() {
         "control" => quote! { grui::classes::control() },
         "colorrect" | "color_rect" => quote! { grui::classes::color_rect() },
-        "omni" => quote! { grui::classes::omni() },
         "itemlist" | "item_list" => quote! { grui::classes::item_list() },
         "label" => quote! { grui::classes::label() },
         "lineedit" | "line_edit" => quote! { grui::classes::line_edit() },
@@ -338,8 +320,8 @@ fn builtin_builder(name: &NodeName) -> Result<TokenStream> {
             quote! { grui::classes::aspect_ratio_container() }
         }
         "boxcontainer" | "box_container" => quote! { grui::classes::box_container() },
-        "vboxcontainer" | "vbox_container" => quote! { grui::classes::vbox_container() },
-        "hboxcontainer" | "hbox_container" => quote! { grui::classes::hbox_container() },
+        "vboxcontainer" | "v_box_container" => quote! { grui::classes::v_box_container() },
+        "hboxcontainer" | "h_box_container" => quote! { grui::classes::h+box_container() },
         "colorpicker" | "color_picker" => quote! { grui::classes::color_picker() },
         "centercontainer" | "center_container" => quote! { grui::classes::center_container() },
         "editorproperty" | "editor_property" => quote! { grui::classes::editor_property() },
@@ -391,7 +373,7 @@ fn component_paths(name: &NodeName) -> Result<(TokenStream, syn::Path)> {
     }
 }
 
-fn attr_name(attr: &KeyedAttribute) -> Result<String> {
+fn attribute_name(attr: &KeyedAttribute) -> Result<String> {
     if attr.key.is_block() {
         return Err(Error::new(
             attr.key.span(),
@@ -423,38 +405,8 @@ fn attribute_value(attr: &KeyedAttribute, allow_missing: bool) -> Result<TokenSt
     }
 }
 
-fn event_ident(name: &str, attr: &KeyedAttribute) -> Result<Ident> {
-    let normalized = name
-        .chars()
-        .map(|c| {
-            if c.is_alphanumeric() {
-                c.to_ascii_uppercase()
-            } else {
-                '_'
-            }
-        })
-        .collect::<String>();
-    Ok(Ident::new(&normalized, attr.span()))
-}
-
 fn attribute_to_ident(name: &str) -> Ident {
-    let mut ident = String::new();
-    let mut uppercase_next = false;
-
-    for (idx, ch) in name.chars().enumerate() {
-        if ch == '-' || ch == ':' {
-            uppercase_next = true;
-        } else if idx == 0 {
-            ident.push(ch.to_ascii_lowercase());
-        } else if uppercase_next {
-            ident.push(ch.to_ascii_uppercase());
-            uppercase_next = false;
-        } else {
-            ident.push(ch);
-        }
-    }
-
-    Ident::new(&ident, Span::call_site())
+    Ident::new(name, Span::call_site())
 }
 
 fn path_to_string(path: &syn::ExprPath) -> String {
@@ -479,22 +431,22 @@ mod tests {
             <>
                 <panel />
                 <vboxcontainer>
-                    <button on:click=resume>Resume</button>
-                    <button>Save</button>
-                    <button>Load</button>
+                    <button on:click=resume text="Resume" />
+                    <button text="Save" />
+                    <button text="Load" />
                 </vboxcontainer>
             </>
         };
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::node::Node::fragment(vec![
-                grui::node::IntoNode::into_node(grui::classes::panel().build()),
-                grui::node::IntoNode::into_node(grui::classes::vbox_container().children((
-                    grui::node::IntoNode::into_node(grui::classes::button().on(grui::events::CLICK, resume).children(grui::node::Node::text("Resume"))),
-                    grui::node::IntoNode::into_node(grui::classes::button().children(grui::node::Node::text("Save"))),
-                    grui::node::IntoNode::into_node(grui::classes::button().children(grui::node::Node::text("Load")))
-                )))
+            grui::control::fragment(vec![
+                grui::classes::panel().build(),
+                grui::classes::v_box_container().children(vec![
+                  grui::classes::button().on("click", resume).prop("text", "Resume").build(),
+                  grui::classes::button().prop("text", "Save").build(),
+                  grui::classes::button().prop("text", "Load").build()
+                ]).build()
             ])
         };
 
@@ -504,12 +456,12 @@ mod tests {
     #[test]
     fn simple_button_with_text() {
         let input = quote! {
-            <button>Click me</button>
+            <button text="Click me" />
         };
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::node::IntoNode::into_node(grui::classes::button().children(grui::node::Node::text("Click me")))
+            grui::classes::button().prop("text", "Click me").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -518,12 +470,12 @@ mod tests {
     #[test]
     fn button_with_on_pressed_event() {
         let input = quote! {
-            <button on:pressed=on_pressed>Save</button>
+            <button on:pressed=on_pressed text="Save" />
         };
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::node::IntoNode::into_node(grui::classes::button().on(grui::events::PRESSED, on_pressed).children(grui::node::Node::text("Save")))
+            grui::classes::button().on("pressed", on_pressed).prop("text", "Save").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -534,14 +486,12 @@ mod tests {
         let input = quote! {
             <button on:pressed={Callable::from_fn(|| {
                 counter.mutate(|c| *c += 1);
-            })}>Save</button>
+            })} text="Save" />
         };
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::node::IntoNode::into_node(
-                grui::classes::button().on(grui::events::PRESSED, { Callable::from_fn(| | { counter.mutate(|c| *c += 1); }) }).children(grui::node::Node::text("Save"))
-            )
+            grui::classes::button().on("pressed", { Callable::from_fn(| | { counter.mutate(|c| *c += 1); }) }).prop("text", "Save").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -550,12 +500,12 @@ mod tests {
     #[test]
     fn label_with_text_attribute() {
         let input = quote! {
-            <label text={format!("{} {}", title, i)} />
+            <label text=format!("{} {}", title, i) />
         };
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::node::IntoNode::into_node(grui::classes::label().prop("text", { format!("{} {}", title, i) }).build())
+            grui::classes::label().prop("text", format!("{} {}", title, i)).build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -569,10 +519,10 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::node::IntoNode::into_node(MenuButton(MenuButtonProps {
+            MenuButton(MenuButtonProps {
                 label: "Resume",
                 on_pressed: { resume },
-            }))
+            })
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -582,19 +532,19 @@ mod tests {
     fn vboxcontainer_with_multiple_children() {
         let input = quote! {
             <vboxcontainer>
-                <button>One</button>
-                <button>Two</button>
-                <button>Three</button>
+                <button text="One" />
+                <button text="Two" />
+                <button text="Three" />
             </vboxcontainer>
         };
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::node::IntoNode::into_node(grui::classes::vbox_container().children((
-                grui::node::IntoNode::into_node(grui::classes::button().children(grui::node::Node::text("One"))),
-                grui::node::IntoNode::into_node(grui::classes::button().children(grui::node::Node::text("Two"))),
-                grui::node::IntoNode::into_node(grui::classes::button().children(grui::node::Node::text("Three")))
-            )))
+            grui::classes::v_box_container().children(vec![
+              grui::classes::button().prop("text", "One").build(),
+              grui::classes::button().prop("text", "Two").build(),
+              grui::classes::button().prop("text", "Three").build()
+            ]).build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -606,19 +556,19 @@ mod tests {
             <vboxcontainer>
                 {
                   (1..=10).map(|i| {
-                      control!(
-                          <label text={format!("{} {}", title, i)} />
-                      )
-                  }).collect::<Control>()
+                      control! {
+                          <label text=format!("{} {}", title, i) />
+                      }
+                  }).collect::<Vec<_>>()
                 }
             </vboxcontainer>
         };
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::node::IntoNode::into_node(grui::classes::vbox_container().children(
-                grui::node::IntoNode::into_node({ (1..=10).map(|i| { control!(<label text={format!("{} {}", title, i)} />) }).collect::<Control>() })
-            ))
+            grui::classes::v_box_container().children(vec![
+              { (1..=10).map(|i| { control! { <label text=format!("{} {}", title, i) />} }).collect::<Vec<_> >() }
+            ]).build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -628,7 +578,7 @@ mod tests {
     fn for_macro_with_each_key_and_let() {
         let input = quote! {
             <For each=|| (1..=5) key=|i| *i let(i)>
-                <label text={format!("Item {}", i)} />
+                <label text=format!("Item {}", i) />
             </For>
         };
         let output = transform(input).expect("transform ok");
@@ -636,7 +586,7 @@ mod tests {
             grui::reactive::for_each(
                 (| | (1..=5))(),
                 |i| *i,
-                |(i)| { grui::node::IntoNode::into_node(grui::classes::label().prop("text", { format!("Item {}", i) }).build()) }
+                |(i)| { grui::classes::label().prop("text", format!("Item {}", i)).build() }
             )
         };
         assert_eq!(pretty(output), pretty(expected));
@@ -650,21 +600,47 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::node::IntoNode::into_node(grui::classes::panel().build())
+            grui::classes::panel().build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
     }
 
     #[test]
-    fn single_text_node() {
+    fn if_statement() {
         let input = quote! {
-            <button>{label}</button>
+            {move || if condition {
+                control! { <button text="Has button" /> }.into_any()
+            } else {
+                control! { <label text="No button" /> }.into_any()
+            }}
         };
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::node::IntoNode::into_node(grui::classes::button().children(grui::node::IntoNode::into_node({ label })))
+            { move | | if condition {
+                control! { <button text="Has button" /> }.into_any()
+            } else {
+                control! { <label text="No button" /> }.into_any()
+            } }
+        };
+
+        assert_eq!(pretty(output), pretty(expected));
+    }
+
+    #[test]
+    fn pass_children() {
+        let input = quote! {
+            <MyComp>
+                <button text="Click me" />
+            </MyComp>
+        };
+
+        let output = transform(input).expect("transform ok");
+        let expected = quote! {
+            MyComp(MyCompProps {
+                children: grui::classes::button().prop("text", "Click me").build(),
+            })
         };
 
         assert_eq!(pretty(output), pretty(expected));

@@ -21,7 +21,7 @@ use grui::prelude::*;
 // easily create custom component
 #[component]
 fn MenuButton(label: String, on_pressed: Callable) -> impl IntoControl {
-    control! { <button on:pressed=on_pressed>{label}</button> }
+    control! { <button on:pressed=on_pressed text=label /> }
 }
 
 // a top-level component is the same as any other
@@ -47,7 +47,7 @@ fn PauseMenu(title: String) -> impl IntoControl {
             // static iteration
             {
               (1..=3).map(|i| {
-                  control!( <label text={format!("{} {}", title, i)} /> )
+                  control! { <label text={format!("{} {}", title, i)} /> }
               })
             }
             // dynamic iteration
@@ -55,9 +55,8 @@ fn PauseMenu(title: String) -> impl IntoControl {
                 <label text=format!("Tick {}", i) />
             </For>
             // event handling
-            <button on:pressed=Callable::from_fn(move || { set_count.update(|c| *c += 1); })>
-                { format!("Clicks: {}", count.get()) }
-            </button>
+            <button on:pressed=Callable::from_fn(move || { set_count.update(|c| *c += 1); })
+              text=format!("Clicks: {}", count.get()) />
             // custom component usage
             <MenuButton label="Resume" on_pressed=resume />
             <MenuButton label="Quit" on_pressed=quit />
@@ -80,3 +79,22 @@ pub struct HUDRoot {
 - `Effect::new(|| ...)` runs immediately and after each render triggered by any state write.
 - `for_each(iter, key, |item| ...)` builds a fragment from an iterator (simple `<For/>` substitute). 
 - create a Godot class with `#[class(root=ComponentType)]`. The renderer mounts once and re-renders when states change.
+
+# Missing
+
+- [ ] Support all classes
+- [ ] Conditions
+- [ ] `state`
+- [ ] `Effect`
+- [ ] `for_each` + `<ForEnumerate />`
+- [ ] `<Show />`
+- [ ] `<ErrorBoundary/>`
+- [ ] `Children` / `ChildrenFn` / `ChildrenFragment`
+- [ ] Better form integration (bind?)
+- [ ] Themes & Override
+- [ ] Statically typed props/signals
+- [ ] Memo?
+- [ ] Context?
+- [ ] Preview in Godot Editor
+- [ ] Optional props
+- [ ] Better fallback macros for invalid syntax

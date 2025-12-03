@@ -1,3 +1,4 @@
+use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{parse2, spanned::Spanned, Error, FnArg, Ident, ItemFn, Pat, PatIdent, Result, Type};
@@ -8,9 +9,10 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
     }
 
     let mut function = parse2::<ItemFn>(item)?;
-    validate_signature(&function)?;
 
+    function.sig.ident = make_snake_case(&function.sig.ident);
     let props_ident = format_ident!("{}Props", function.sig.ident);
+
     let (field_idents, field_types) = extract_fields(&function.sig)?;
     let has_fields = !field_idents.is_empty();
     let destructure: Option<TokenStream> = if has_fields {
@@ -18,25 +20,29 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
     } else {
         None
     };
-
     function.sig.inputs.clear();
-    function
-        .sig
-        .inputs
-        .push(syn::parse_quote! { props: #props_ident });
-
     if let Some(destructure_ts) = &destructure {
+        function
+            .sig
+            .inputs
+            .push(syn::parse_quote! { props: #props_ident });
         function
             .block
             .stmts
             .insert(0, syn::parse_quote! { let #destructure_ts = props; });
+    } else {
+        function
+            .sig
+            .inputs
+            .push(syn::parse_quote! { _: #props_ident });
     }
 
     let vis = function.vis.clone();
     let attrs = function.attrs.clone();
     function.attrs.clear();
 
-    function.sig.output = syn::parse_quote! { -> impl grui::node::IntoControl };
+    // TODO: check output first
+    function.sig.output = syn::parse_quote! { -> impl grui::control::IntoControl };
 
     let props = quote! {
         #[derive(Clone, Debug)]
@@ -47,22 +53,12 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
 
     let output = quote! {
         #props
-        #[allow(non_snake_case)]
         #(#attrs)*
+        #[allow(non_snake_case)]
         #function
     };
 
     Ok(output)
-}
-
-fn validate_signature(function: &ItemFn) -> Result<()> {
-    if matches!(function.sig.inputs.first(), Some(FnArg::Receiver(_))) {
-        return Err(Error::new(
-            function.sig.inputs.span(),
-            "component functions cannot take self",
-        ));
-    }
-    Ok(())
 }
 
 fn extract_fields(sig: &syn::Signature) -> Result<(Vec<Ident>, Vec<Type>)> {
@@ -84,11 +80,25 @@ fn extract_fields(sig: &syn::Signature) -> Result<(Vec<Ident>, Vec<Type>)> {
                 idents.push(ident);
                 types.push(ty);
             }
-            FnArg::Receiver(_) => {}
+            FnArg::Receiver(_) => {
+                return Err(Error::new(
+                    input.span(),
+                    "component functions cannot take self",
+                ));
+            }
         }
     }
 
     Ok((idents, types))
+}
+
+fn make_snake_case(name: &Ident) -> Ident {
+    let name_str = name.to_string();
+    if !name_str.is_case(Case::Snake) {
+        name.clone()
+    } else {
+        Ident::new(&name_str.to_case(Case::Pascal), name.span())
+    }
 }
 
 #[cfg(test)]
@@ -102,13 +112,10 @@ mod tests {
         let args = r#""#.parse().expect("args to be parsable");
 
         let input = quote! {
-            pub fn Button(label: String, disabled: bool) -> impl grui::node::IntoControl {
-                if disabled {
-                    return Node::empty();
+            pub fn Button(label: String, disabled: bool) -> impl IntoControl {
+                control! {
+                  <button disabled=disabled text=label />
                 }
-                control!(
-                  <button>{label}</button>
-                )
             }
         };
 
@@ -120,14 +127,11 @@ mod tests {
             }
 
             #[allow(non_snake_case)]
-            pub fn Button(props: ButtonProps) -> impl grui::node::IntoControl {
+            pub fn Button(props: ButtonProps) -> impl grui::control::IntoControl {
                 let ButtonProps { label, disabled } = props;
-                if disabled {
-                    return Node::empty();
+                control! {
+                    <button disabled=disabled text=label />
                 }
-                control!(
-                    <button>{label}</button>
-                )
             }
         };
 
@@ -141,10 +145,10 @@ mod tests {
         let args = r#""#.parse().expect("args to be parsable");
 
         let input = quote! {
-            fn MenuButton(label: String, on_pressed: Callable) -> Control {
-                control!(
-                    <button on:pressed=on_pressed>{label}</button>
-                )
+            fn MenuButton(label: String, on_pressed: Callable) -> impl IntoControl {
+                control! {
+                    <button on:pressed=on_pressed text=label />
+                }
             }
         };
 
@@ -156,11 +160,11 @@ mod tests {
             }
 
             #[allow(non_snake_case)]
-            fn MenuButton(props: MenuButtonProps) -> impl grui::node::IntoControl {
+            fn MenuButton(props: MenuButtonProps) -> impl grui::control::IntoControl {
                 let MenuButtonProps { label, on_pressed } = props;
-                control!(
-                    <button on:pressed=on_pressed>{label}</button>
-                )
+                control! {
+                    <button on:pressed=on_pressed text=label />
+                }
             }
         };
 
@@ -174,8 +178,8 @@ mod tests {
         let args = r#""#.parse().expect("args to be parsable");
 
         let input = quote! {
-            fn SimpleButton() -> Control {
-                control!(<button>Click</button>)
+            fn SimpleButton() -> impl IntoControl {
+                control! {<button text="Click" />}
             }
         };
 
@@ -184,8 +188,8 @@ mod tests {
             struct SimpleButtonProps { }
 
             #[allow(non_snake_case)]
-            fn SimpleButton(props: SimpleButtonProps) -> impl grui::node::IntoControl {
-                control!(<button>Click</button>)
+            fn SimpleButton(_: SimpleButtonProps) -> impl grui::control::IntoControl {
+                control! {<button text="Click" />}
             }
         };
 
@@ -197,7 +201,7 @@ mod tests {
     #[test]
     fn captures_var_names() {
         let args = r#""#.parse().unwrap();
-        let input = quote! { fn Foo(bar: i32, children: String) -> impl grui::node::IntoControl { control!(<label max_lines_visible=bar>{children}</label>) } };
+        let input = quote! { fn foo(bar: i32, children: String) -> impl grui::control::IntoControl { control! {<label max_lines_visible=bar text=children />} } };
         let output = transform(args, input).expect("ok");
         let expected = quote! {
             #[derive(Clone, Debug)]
@@ -207,9 +211,9 @@ mod tests {
             }
 
             #[allow(non_snake_case)]
-            fn Foo(props: FooProps) -> impl grui::node::IntoControl {
+            fn Foo(props: FooProps) -> impl grui::control::IntoControl {
                 let FooProps { bar, children } = props;
-                control!(<label max_lines_visible=bar>{children}</label>)
+                control! {<label max_lines_visible=bar text=children />}
             }
         };
         assert_eq!(pretty(output), pretty(expected));
@@ -219,7 +223,7 @@ mod tests {
     fn rejects_receiver() {
         let args = r#""#.parse().unwrap();
         let input =
-            quote! { fn method(&self) -> impl grui::node::IntoControl { control!(<label/> ) } };
+            quote! { fn method(&self) -> impl grui::control::IntoControl { control! {<label/>} } };
         let err = transform(args, input).unwrap_err();
         let msg = err.to_string();
         let expected = "component functions cannot take self";

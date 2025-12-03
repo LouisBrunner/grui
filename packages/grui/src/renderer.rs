@@ -2,40 +2,42 @@ use crate::control::IntoControl;
 use godot::{classes::Control, obj::Gd};
 
 pub struct Renderer {
-    root: Gd<Control>,
+    parent: Gd<Control>,
+    root: Vec<Gd<Control>>,
 }
 
 impl Renderer {
-    pub fn mount<P, C>(parent: Gd<Control>, component: C, props: P) -> Self
+    pub fn mount<P, C, T>(mut parent: Gd<Control>, component: C, props: P) -> Self
     where
-        C: FnOnce(P) -> impl IntoControl,
+        C: FnOnce(P) -> T,
+        T: IntoControl,
     {
-        let control = component(props).into_control();
-        parent.add_child(control.get_gd());
+        let controls = component(props).to_controls();
+        for control in &controls {
+            parent.add_child(control);
+        }
         Renderer {
-            root: control.get_gd(),
+            parent,
+            root: controls,
         }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use grui_macros::{component, control};
+pub struct TestRenderer {
+    result: String,
+}
 
-    #[component]
-    fn MyComp(a: u32, b: String) -> impl IntoControl {
-        return control! {
-          <label>{format!("a: {}, b: {}", a, b)}</label>
-        };
+impl TestRenderer {
+    pub fn mount<P, C, T>(component: C, props: P) -> Self
+    where
+        C: FnOnce(P) -> T,
+        T: IntoControl,
+    {
+        let result = component(props).to_json();
+        TestRenderer { result }
     }
 
-    #[test]
-    fn it_works() {
-        let props = MyCompProps {
-            a: 42,
-            b: "dauphin".to_string(),
-        };
-        let renderer = Renderer::mount(parent, MyComp, props);
+    pub fn snapshot(&self) -> &str {
+        &self.result
     }
 }

@@ -1,4 +1,33 @@
-struct ElementBuilder;
+use crate::control::{BuiltinControl, IntoControl};
+use godot::{builtin::Callable, meta::ToGodot};
+pub struct ElementBuilder;
+
+impl ElementBuilder {
+    pub fn prop<T>(mut self, _name: &str, _value: T) -> Self
+    where
+        T: ToGodot,
+    {
+        // TODO: store properties
+        self
+    }
+
+    pub fn on(mut self, _event: &str, _handler: Callable) -> Self {
+        // TODO: store signals
+        self
+    }
+
+    pub fn children<C>(mut self, _children: Vec<C>) -> Self
+    where
+        C: IntoControl,
+    {
+        // TODO: store children
+        self
+    }
+
+    pub fn build(&self) -> impl IntoControl {
+        BuiltinControl {}
+    }
+}
 
 pub fn aspect_ratio_container() -> ElementBuilder {
     panic!("TODO: redo")
