@@ -12,7 +12,12 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
 
     let props_ident = format_ident!("{}Props", function.sig.ident);
     let (field_idents, field_types) = extract_fields(&function.sig)?;
-    let destructure: TokenStream = quote! { #props_ident { #( #field_idents, )* children } };
+    let has_fields = !field_idents.is_empty();
+    let destructure: Option<TokenStream> = if has_fields {
+        Some(quote! { #props_ident { #( #field_idents, )* } })
+    } else {
+        None
+    };
 
     function.sig.inputs.clear();
     function
@@ -20,10 +25,12 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
         .inputs
         .push(syn::parse_quote! { props: #props_ident });
 
-    function
-        .block
-        .stmts
-        .insert(0, syn::parse_quote! { let #destructure = props; });
+    if let Some(destructure_ts) = &destructure {
+        function
+            .block
+            .stmts
+            .insert(0, syn::parse_quote! { let #destructure_ts = props; });
+    }
 
     let vis = function.vis.clone();
     let attrs = function.attrs.clone();
@@ -35,7 +42,6 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
         #[derive(Clone, Debug)]
         #vis struct #props_ident {
             #(pub #field_idents: #field_types,)*
-            pub children: grui::node::Children,
         }
     };
 
@@ -88,35 +94,8 @@ fn extract_fields(sig: &syn::Signature) -> Result<(Vec<Ident>, Vec<Type>)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::pretty;
     use pretty_assertions::assert_eq;
-
-    fn prettyprint(item: TokenStream) -> String {
-        let s = item.to_string();
-        normalize(&s)
-    }
-
-    fn normalize(s: &str) -> String {
-        let mut out = String::new();
-        let chars: Vec<char> = s.chars().collect();
-        let mut i = 0;
-        while i < chars.len() {
-            let c = chars[i];
-            if c == ',' {
-                let mut j = i + 1;
-                while j < chars.len() && chars[j].is_whitespace() {
-                    j += 1;
-                }
-                if j < chars.len() && (chars[j] == ')' || chars[j] == '}' || chars[j] == ']') {
-                    i = j;
-                    continue;
-                }
-            }
-            out.push(c);
-            i += 1;
-        }
-        // collapse whitespace
-        out.split_whitespace().collect::<Vec<_>>().join(" ")
-    }
 
     #[test]
     pub fn simple() {
@@ -138,12 +117,11 @@ mod tests {
             pub struct ButtonProps {
                 pub label: String,
                 pub disabled: bool,
-                pub children: grui::node::Children,
             }
 
             #[allow(non_snake_case)]
             pub fn Button(props: ButtonProps) -> impl grui::node::IntoControl {
-                let ButtonProps { label, disabled, children } = props;
+                let ButtonProps { label, disabled } = props;
                 if disabled {
                     return Node::empty();
                 }
@@ -155,7 +133,7 @@ mod tests {
 
         let output = transform(args, input).expect("transform to succeed");
 
-        assert_eq!(prettyprint(output), prettyprint(expected));
+        assert_eq!(pretty(output), pretty(expected));
     }
 
     #[test]
@@ -175,12 +153,11 @@ mod tests {
             struct MenuButtonProps {
                 pub label: String,
                 pub on_pressed: Callable,
-                pub children: grui::node::Children,
             }
 
             #[allow(non_snake_case)]
             fn MenuButton(props: MenuButtonProps) -> impl grui::node::IntoControl {
-                let MenuButtonProps { label, on_pressed, children } = props;
+                let MenuButtonProps { label, on_pressed } = props;
                 control!(
                     <button on:pressed=on_pressed>{label}</button>
                 )
@@ -189,7 +166,7 @@ mod tests {
 
         let output = transform(args, input).expect("transform to succeed");
 
-        assert_eq!(prettyprint(output), prettyprint(expected));
+        assert_eq!(pretty(output), pretty(expected));
     }
 
     #[test]
@@ -204,41 +181,38 @@ mod tests {
 
         let expected = quote! {
             #[derive(Clone, Debug)]
-            struct SimpleButtonProps {
-                pub children: grui::node::Children,
-            }
+            struct SimpleButtonProps { }
 
             #[allow(non_snake_case)]
             fn SimpleButton(props: SimpleButtonProps) -> impl grui::node::IntoControl {
-                let SimpleButtonProps { children } = props;
                 control!(<button>Click</button>)
             }
         };
 
         let output = transform(args, input).expect("transform to succeed");
 
-        assert_eq!(prettyprint(output), prettyprint(expected));
+        assert_eq!(pretty(output), pretty(expected));
     }
 
     #[test]
     fn captures_var_names() {
         let args = r#""#.parse().unwrap();
-        let input = quote! { fn Foo(bar: i32) -> impl grui::node::IntoControl { control!(<label>{bar}</label>) } };
+        let input = quote! { fn Foo(bar: i32, children: String) -> impl grui::node::IntoControl { control!(<label max_lines_visible=bar>{children}</label>) } };
         let output = transform(args, input).expect("ok");
         let expected = quote! {
             #[derive(Clone, Debug)]
             struct FooProps {
                 pub bar: i32,
-                pub children: grui::node::Children,
+                pub children: String,
             }
 
             #[allow(non_snake_case)]
             fn Foo(props: FooProps) -> impl grui::node::IntoControl {
                 let FooProps { bar, children } = props;
-                control!(<label>{bar}</label>)
+                control!(<label max_lines_visible=bar>{children}</label>)
             }
         };
-        assert_eq!(prettyprint(output), prettyprint(expected));
+        assert_eq!(pretty(output), pretty(expected));
     }
 
     #[test]
@@ -250,24 +224,5 @@ mod tests {
         let msg = err.to_string();
         let expected = "component functions cannot take self";
         assert_eq!(msg, expected);
-    }
-
-    #[test]
-    fn debug_print_component_outputs() {
-        // Prints outputs for a few cases to help update expected strings
-        let args: TokenStream = r#""#.parse().unwrap();
-
-        let cases = vec![
-            quote! { pub fn Button(label: String, disabled: bool) -> impl grui::node::IntoControl { if disabled { return Node::empty(); } control!(<button>{label}</button>) } },
-            quote! { fn MenuButton(label: String, on_pressed: Callable) -> Control { control!(<button on:pressed=on_pressed>{label}</button>) } },
-            quote! { fn SimpleButton() -> Control { control!(<button>Click</button>) } },
-        ];
-
-        for (i, input) in cases.into_iter().enumerate() {
-            let out = transform(args.clone(), input)
-                .map(|t| t.to_string())
-                .unwrap_or_else(|e| e.to_string());
-            println!("CASE {}: {}", i, out);
-        }
     }
 }

@@ -1,5 +1,5 @@
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{
     parse::{Parse, ParseStream},
     parse2,
@@ -10,22 +10,51 @@ use syn::{
 
 #[derive(Debug)]
 struct Args {
-    component: Ident,
+    base: Ident,
+    root: Ident,
 }
 
 impl Parse for Args {
     fn parse(input: ParseStream) -> Result<Self> {
-        if input.is_empty() {
-            Err(Error::new(input.span(), "expected component type"))
-        } else {
-            let arg_type = input.parse()?;
-            if !input.is_empty() {
-                return Err(Error::new(input.span(), "unexpected token"));
+        use syn::Token;
+
+        let mut base: Option<Ident> = None;
+        let mut root: Option<Ident> = None;
+
+        while !input.is_empty() {
+            let key: Ident = input.parse()?;
+            input.parse::<Token![=]>()?;
+            let value: Ident = input.parse()?;
+
+            let key_str = key.to_string();
+            if key_str == "base" {
+                if base.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `base`"));
+                }
+                base = Some(value);
+            } else if key_str == "root" {
+                if root.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `root`"));
+                }
+                root = Some(value);
+            } else {
+                return Err(Error::new(
+                    key.span(),
+                    "unexpected key; expected `base` or `root`",
+                ));
             }
-            Ok(Self {
-                component: arg_type,
-            })
+
+            if input.peek(Token![,]) {
+                let _ = input.parse::<Token![,]>()?;
+            } else {
+                break;
+            }
         }
+
+        let root = root.ok_or_else(|| Error::new(input.span(), "missing `root` argument"))?;
+        let base = base.unwrap_or_else(|| Ident::new("Control", proc_macro2::Span::call_site()));
+
+        Ok(Self { base, root })
     }
 }
 
@@ -36,7 +65,16 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
     let span = item.span();
     let vis = item.vis;
     let ident = item.ident;
-    let comp = args.component;
+    let root = args.root;
+    let base = args.base;
+    let base_interface = format_ident!("I{}", base);
+    let root_props = format_ident!("{}Props", root);
+    let need_upcast = base != "Control";
+    let get_base = if need_upcast {
+        quote! { self.base.to_gd().upcast() }
+    } else {
+        quote! { self.base.to_gd() }
+    };
 
     let fields = match item.fields {
         syn::Fields::Named(fields_named) => Ok(fields_named.named),
@@ -53,29 +91,23 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
         .collect::<Punctuated<_, Token![,]>>();
 
     let gen = quote! {
-      use godot::classes::IControl;
+      use godot::classes::#base_interface;
 
       #[derive(godot::register::GodotClass)]
-      #[class(init, base=Control)]
+      #[class(init, base=#base)]
       #vis struct #ident {
           grui_renderer: Option<grui::renderer::Renderer>,
-          base: godot::obj::Base<godot::classes::Control>,
+          base: godot::obj::Base<godot::classes::#base>,
           #fields
       }
 
       #[godot_api]
-      impl IControl for #ident {
+      impl #base_interface for #ident {
           fn ready(&mut self) {
-            let component = #comp {
+            let props = #root_props {
               #fields_comp
             };
-            self.grui_renderer = Some(grui::renderer::Renderer::from_component(self.base.to_gd(), component));
-          }
-
-          fn process(&mut self, delta: f64) {
-              if let Some(renderer) = &mut self.grui_renderer {
-                renderer.process(delta);
-              }
+            self.grui_renderer = Some(grui::renderer::Renderer::mount(#get_base, #root, props));
           }
       }
     };
@@ -86,57 +118,12 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::pretty;
     use pretty_assertions::assert_eq;
 
-    fn prettyprint(item: TokenStream) -> String {
-        let s = item.to_string();
-        normalize(&s)
-    }
-
-    fn normalize(s: &str) -> String {
-        let mut out = String::new();
-        let chars: Vec<char> = s.chars().collect();
-        let mut i = 0;
-        while i < chars.len() {
-            let c = chars[i];
-            if c == ',' {
-                // look ahead for spaces then a closing bracket
-                let mut j = i + 1;
-                while j < chars.len() && chars[j].is_whitespace() {
-                    j += 1;
-                }
-                if j < chars.len() && (chars[j] == ')' || chars[j] == '}' || chars[j] == ']') {
-                    // skip the comma and following spaces
-                    i += 1;
-                    while i < chars.len() && chars[i].is_whitespace() {
-                        i += 1;
-                    }
-                    continue;
-                }
-            }
-            out.push(c);
-            i += 1;
-        }
-        // collapse consecutive whitespace to single spaces
-        let mut collapsed = String::new();
-        let mut prev_space = false;
-        for ch in out.chars() {
-            if ch.is_whitespace() {
-                if !prev_space {
-                    collapsed.push(' ');
-                    prev_space = true;
-                }
-            } else {
-                collapsed.push(ch);
-                prev_space = false;
-            }
-        }
-        collapsed.trim().to_string()
-    }
-
     #[test]
-    fn simple() {
-        let args = r#"App"#.parse().expect("args to be parsable");
+    fn with_props() {
+        let args = r#"root=App"#.parse().expect("args to be parsable");
 
         let input = quote! {
           pub struct MyStruct {
@@ -164,28 +151,22 @@ mod tests {
           #[godot_api]
           impl IControl for MyStruct {
               fn ready(&mut self) {
-                let component = App {
+                let props = AppProps {
                   field: self.field.clone(),
                   abc: self.abc.clone(),
                 };
-                self.grui_renderer = Some(grui::renderer::Renderer::from_component(self.base.to_gd(), component));
-              }
-
-              fn process(&mut self, delta: f64) {
-                  if let Some(renderer) = &mut self.grui_renderer {
-                    renderer.process(delta);
-                  }
+                self.grui_renderer = Some(grui::renderer::Renderer::mount(self.base.to_gd(), App, props));
               }
           }
         };
 
         let output = transform(args, input).expect("transform to succeed");
-        assert_eq!(prettyprint(output), prettyprint(expected));
+        assert_eq!(pretty(output), pretty(expected));
     }
 
     #[test]
-    fn unit_struct_generates_base_fields() {
-        let args = r#"App"#.parse().unwrap();
+    fn without_props() {
+        let args = r#"root=App"#.parse().unwrap();
         let input = quote! { struct Empty; };
         let output = transform(args, input).expect("transform ok");
 
@@ -202,57 +183,45 @@ mod tests {
             #[godot_api]
             impl IControl for Empty {
                 fn ready(&mut self) {
-                  let component = App {  };
-                  self.grui_renderer = Some(grui::renderer::Renderer::from_component(self.base.to_gd(), component));
-                }
-
-                fn process(&mut self, delta: f64) {
-                    if let Some(renderer) = &mut self.grui_renderer {
-                      renderer.process(delta);
-                    }
+                  let props = AppProps {  };
+                  self.grui_renderer = Some(grui::renderer::Renderer::mount(self.base.to_gd(), App, props));
                 }
             }
         };
 
-        assert_eq!(prettyprint(output), prettyprint(expected));
+        assert_eq!(pretty(output), pretty(expected));
     }
 
     #[test]
-    fn named_fields_cloned_into_props() {
-        let args = r#"MyComp"#.parse().unwrap();
+    fn with_custom_base() {
+        let args = r#"root=MyComp,base=Button"#.parse().unwrap();
         let input = quote! { struct Foo { a: String, b: usize } };
         let output = transform(args, input).expect("transform ok");
 
         let expected = quote! {
-            use godot::classes::IControl;
+            use godot::classes::IButton;
 
             #[derive(godot::register::GodotClass)]
-            #[class(init, base=Control)]
+            #[class(init, base=Button)]
             struct Foo {
                 grui_renderer: Option<grui::renderer::Renderer>,
-                base: godot::obj::Base<godot::classes::Control>,
+                base: godot::obj::Base<godot::classes::Button>,
                 a: String,
                 b: usize,
             }
 
             #[godot_api]
-            impl IControl for Foo {
+            impl IButton for Foo {
                 fn ready(&mut self) {
-                  let component = MyComp {
+                  let props = MyCompProps {
                     a: self.a.clone(),
                     b: self.b.clone(),
                   };
-                  self.grui_renderer = Some(grui::renderer::Renderer::from_component(self.base.to_gd(), component));
-                }
-
-                fn process(&mut self, delta: f64) {
-                    if let Some(renderer) = &mut self.grui_renderer {
-                      renderer.process(delta);
-                    }
+                  self.grui_renderer = Some(grui::renderer::Renderer::mount(self.base.to_gd().upcast(), MyComp, props));
                 }
             }
         };
 
-        assert_eq!(prettyprint(output), prettyprint(expected));
+        assert_eq!(pretty(output), pretty(expected));
     }
 }

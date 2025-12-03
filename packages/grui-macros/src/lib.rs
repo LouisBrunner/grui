@@ -2,6 +2,9 @@ pub(crate) mod class;
 pub(crate) mod component;
 pub(crate) mod control;
 
+#[cfg(test)]
+pub(crate) mod test_utils;
+
 #[proc_macro_attribute]
 pub fn class(
     attr: proc_macro::TokenStream,

@@ -1,24 +1,16 @@
 # grui
 
 `grui` lets you build declarative, reactive user interfaces for Godot in Rust.
-Inspired by React and Leptos, it combines a compact HTML-like syntax with the
-Godot Rust bindings to render control-based UIs.
+Inspired by React and Leptos, it combines a compact HTML-like syntax with the Godot Rust bindings to render control-based UIs.
 
-The API and DSL are inspired by [Leptos](https://www.leptos.dev/). You get
-signals, effects and a `<For/>` element for
-basic reactivity.
+The API and DSL are inspired by [Leptos](https://www.leptos.dev/). You get states (equivalent to signals), effects and a `<For/>` element for basic reactivity.
 
 ## Crates
 
 The workspace contains two crates:
 
-- `grui` – runtime types and Godot integration (`Renderer`, virtual nodes,
-  reactive signals/effects, component trait, builders, etc.)
-- `grui-macros` – provides the `control!` macro and `component` and
-  `class` attributes. See `packages/grui-macros/README.md` for macro examples and tests.
-
-Add them to your project via the workspace manifest or by depending on
-`grui = { path = ".../packages/grui" }`.
+- `grui`: contains the `Renderer` and all the reactive elements, it provides a `prelude` which also imports the `grui-macros`.
+- `grui-macros`: provides the `control!` macro and `#[component]` and `#[class]` attributes.
 
 ## Quick start
 
@@ -26,14 +18,16 @@ Add them to your project via the workspace manifest or by depending on
 use godot::prelude::*;
 use grui::prelude::*;
 
+// easily create custom component
 #[component]
 fn MenuButton(label: String, on_pressed: Callable) -> impl IntoControl {
-    control!( <button on:pressed=on_pressed>{label}</button> )
+    control! { <button on:pressed=on_pressed>{label}</button> }
 }
 
+// a top-level component is the same as any other
 #[component]
 fn PauseMenu(title: String) -> impl IntoControl {
-    let (count, set_count) = signal(0);
+    let (count, set_count) = state(0);
 
     Effect::new(|| {
         godot::godot_print!("Effect: count is {}", count.get());
@@ -47,25 +41,34 @@ fn PauseMenu(title: String) -> impl IntoControl {
         godot::godot_print!("Quitting game!");
     });
 
-    control!(
+    control! {
+        // built-in tags
         <vboxcontainer>
-            <For each=|| (1..=3) key=|i| *i let(i)>
-                <label text={format!("{} {}", title, i)} />
-            </For>
+            // static iteration
+            {
+              (1..=3).map(|i| {
+                  control!( <label text={format!("{} {}", title, i)} /> )
+              })
+            }
+            // dynamic iteration
             <For each=|| (0..count.get()) key=|i| *i let(i)>
                 <label text=format!("Tick {}", i) />
             </For>
+            // event handling
             <button on:pressed=Callable::from_fn(move || { set_count.update(|c| *c += 1); })>
                 { format!("Clicks: {}", count.get()) }
             </button>
+            // custom component usage
             <MenuButton label="Resume" on_pressed=resume />
             <MenuButton label="Quit" on_pressed=quit />
         </vboxcontainer>
-    )
+    }
 }
 
-#[grui::prelude::class(PauseMenu)]
-pub struct HudRoot {
+// this struct can now be used directly in the Godot Editor
+#[grui::prelude::class(root=PauseMenu)]
+pub struct HUDRoot {
+    // properties are given as props to the root component
     #[export]
     title: String,
 }
@@ -73,15 +76,7 @@ pub struct HudRoot {
 
 ### Reactivity
 
-- `signal(initial)` returns `(ReadSignal<T>, WriteSignal<T>)` – call `set()` or
-  `update()` to mutate, which marks the UI dirty. Renderer re-renders on next
-  `process()`.
-- `Effect::new(|| ...)` runs immediately and after each render triggered by any
-  signal write.
-- `for_each(iter, key, |item| ...)` builds a fragment from an iterator (simple
-  `<For/>` substitute). Key currently unused but reserved for diffing.
-
-### Lifecycle
-
-Create a Godot class with `#[class(ComponentType)]` (from macros crate). The
-renderer mounts once and re-renders when signals change.
+- `state(initial)` returns `(ReadState<T>, WriteState<T>)` – call `set()` or `update()` to mutate, which marks the UI dirty.
+- `Effect::new(|| ...)` runs immediately and after each render triggered by any state write.
+- `for_each(iter, key, |item| ...)` builds a fragment from an iterator (simple `<For/>` substitute). 
+- create a Godot class with `#[class(root=ComponentType)]`. The renderer mounts once and re-renders when states change.

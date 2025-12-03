@@ -2,23 +2,19 @@ use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 use rstml::node::{
     KVAttributeValue, KeyedAttribute, KeyedAttributeValue, Node as HtmlNode, NodeAttribute,
-    NodeElement, NodeFragment, NodeName,
+    NodeElement, NodeName,
 };
 use rstml::parse2;
 use syn::{spanned::Spanned, Error, Ident, LitStr, Result};
 
 type HtmlElement = NodeElement<rstml::node::Infallible>;
-type HtmlFragment = NodeFragment<rstml::node::Infallible>;
 
 pub fn transform(input: TokenStream) -> Result<TokenStream> {
     let nodes = parse2(input)?;
 
     let tokens = match nodes.as_slice() {
         [single] => transform_node(single)?,
-        slice => {
-            let children = transform_children(slice)?;
-            quote! { grui::node::Node::fragment(vec![#(#children),*]) }
-        }
+        slice => transform_fragment(slice)?,
     };
 
     Ok(tokens)
@@ -27,18 +23,18 @@ pub fn transform(input: TokenStream) -> Result<TokenStream> {
 fn transform_node(node: &HtmlNode) -> Result<TokenStream> {
     match node {
         HtmlNode::Element(element) => transform_element(element),
+        HtmlNode::Fragment(fragment) => transform_fragment(&fragment.children),
         HtmlNode::Text(text) => {
             let value = text.value.value();
             Ok(quote! { grui::node::Node::text(#value) })
         }
-        HtmlNode::Fragment(fragment) => transform_fragment(fragment),
-        HtmlNode::Block(block) => {
-            let block_tokens = quote! { #block };
-            Ok(quote! { grui::node::IntoNode::into_node(#block_tokens) })
-        }
         HtmlNode::RawText(raw) => {
             let value = raw.to_token_stream_string();
             Ok(quote! { grui::node::Node::text(#value) })
+        }
+        HtmlNode::Block(block) => {
+            let block_tokens = quote! { #block };
+            Ok(quote! { grui::node::IntoNode::into_node(#block_tokens) })
         }
         HtmlNode::Comment(_) => Ok(quote! { grui::node::Node::empty() }),
         HtmlNode::Doctype(_) => Err(Error::new(
@@ -52,8 +48,8 @@ fn transform_node(node: &HtmlNode) -> Result<TokenStream> {
     }
 }
 
-fn transform_fragment(fragment: &HtmlFragment) -> Result<TokenStream> {
-    let children = transform_children(&fragment.children)?;
+fn transform_fragment(children: &[HtmlNode]) -> Result<TokenStream> {
+    let children = transform_children(children)?;
     Ok(quote! { grui::node::Node::fragment(vec![#(#children),*]) })
 }
 
@@ -101,7 +97,7 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
                 ));
             }
             let field_ident = attribute_to_ident(&key);
-            let value = attribute_value_or_true(attr)?;
+            let value = attribute_value(attr, true)?;
             fields.push(quote! { #field_ident: #value });
         } else {
             return Err(Error::new(
@@ -113,15 +109,17 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
 
     let children = transform_children(&element.children)?;
     let children_expr = match children.len() {
-        0 => quote! { grui::node::Node::empty() },
+        0 => None,
         1 => {
             let child = &children[0];
-            quote! { #child }
+            Some(quote! { #child })
         }
-        _ => quote! { grui::node::Node::fragment(vec![#(#children),*]) },
+        _ => Some(quote! { grui::node::Node::fragment(vec![#(#children),*]) }),
     };
 
-    fields.push(quote! { children: #children_expr });
+    if let Some(children_expr) = children_expr {
+        fields.push(quote! { children: #children_expr });
+    }
 
     let props_literal = quote! {
         #props_path {
@@ -138,17 +136,17 @@ fn apply_attributes(mut builder: TokenStream, element: &HtmlElement) -> Result<T
             NodeAttribute::Attribute(attr) => {
                 let key = attr_name(attr)?;
                 if let Some(event) = key.strip_prefix("on:") {
-                    let handler = attribute_value_expr(attr)?;
+                    let handler = attribute_value(attr, false)?;
                     let event_ident = event_ident(event, attr)?;
                     builder = quote! { #builder.on(grui::events::#event_ident, #handler) };
                 } else if key == "key" {
-                    let value = attribute_value_expr(attr)?;
+                    let value = attribute_value(attr, false)?;
                     builder = quote! { #builder.key(#value) };
                 } else if key == "text" {
-                    let value = attribute_value_expr(attr)?;
+                    let value = attribute_value(attr, false)?;
                     builder = quote! { #builder.prop("text", #value) };
                 } else {
-                    let value = attribute_value_or_true(attr)?;
+                    let value = attribute_value(attr, true)?;
                     let key_lit = LitStr::new(&key, attr.key.span());
                     builder = quote! { #builder.prop(#key_lit, #value) };
                 }
@@ -170,19 +168,11 @@ fn transform_children(nodes: &[HtmlNode]) -> Result<Vec<TokenStream>> {
 }
 
 fn is_for_tag(name: &NodeName) -> Result<bool> {
+    const FOR_TAG: &str = "For";
+
     match name {
-        NodeName::Path(path) => Ok(path_to_string(path).ends_with("For")),
-        NodeName::Punctuated(p) => {
-            if let Some(pair) = p.pairs().next_back() {
-                let ident = match pair {
-                    syn::punctuated::Pair::Punctuated(fragment, _) => fragment.clone(),
-                    syn::punctuated::Pair::End(fragment) => fragment.clone(),
-                };
-                Ok(ident.to_string() == "For")
-            } else {
-                Ok(false)
-            }
-        }
+        NodeName::Path(path) => Ok(path_to_string(path) == FOR_TAG),
+        NodeName::Punctuated(_) => Ok(false),
         NodeName::Block(_) => Ok(false),
     }
 }
@@ -198,33 +188,31 @@ fn transform_for(element: &HtmlElement) -> Result<TokenStream> {
                 let key = attr_name(attr)?;
                 match key.as_str() {
                     "each" => {
-                        let expr = attribute_value_expr(attr)?;
+                        let expr = attribute_value(attr, false)?;
                         // require zero-arg closure; call it at runtime
                         each_expr = Some(quote! { (#expr)() });
                     }
                     "key" => {
-                        let expr = attribute_value_expr(attr)?;
+                        let expr = attribute_value(attr, false)?;
                         key_expr = Some(quote! { #expr });
                     }
-                    "let" => {
-                        match &attr.possible_value {
-                            KeyedAttributeValue::Binding(binding) => {
-                                let tokens = quote! { #binding };
-                                pattern_tokens = Some(tokens);
-                            }
-                            KeyedAttributeValue::Value(value_expr) => match &value_expr.value {
-                                KVAttributeValue::Expr(expr) => {
-                                    pattern_tokens = Some(quote! { #expr });
-                                }
-                                KVAttributeValue::InvalidBraced(_) => {
-                                    return Err(Error::new(attr.span(), "invalid let pattern"));
-                                }
-                            },
-                            KeyedAttributeValue::None => {
-                                return Err(Error::new(attr.span(), "let(...) requires a pattern"));
-                            }
+                    "let" => match &attr.possible_value {
+                        KeyedAttributeValue::Binding(binding) => {
+                            let tokens = quote! { #binding };
+                            pattern_tokens = Some(tokens);
                         }
-                    }
+                        KeyedAttributeValue::Value(value_expr) => match &value_expr.value {
+                            KVAttributeValue::Expr(expr) => {
+                                pattern_tokens = Some(quote! { #expr });
+                            }
+                            KVAttributeValue::InvalidBraced(_) => {
+                                return Err(Error::new(attr.span(), "invalid let pattern"));
+                            }
+                        },
+                        KeyedAttributeValue::None => {
+                            return Err(Error::new(attr.span(), "let(...) requires a pattern"));
+                        }
+                    },
                     other => {
                         return Err(Error::new(
                             attr.span(),
@@ -234,12 +222,16 @@ fn transform_for(element: &HtmlElement) -> Result<TokenStream> {
                 }
             }
             NodeAttribute::Block(_) => {
-                return Err(Error::new(attribute.span(), "attribute blocks are not supported on <For>"));
+                return Err(Error::new(
+                    attribute.span(),
+                    "attribute blocks are not supported on <For>",
+                ));
             }
         }
     }
 
-    let each_expr = each_expr.ok_or_else(|| Error::new(element.name().span(), "<For> requires `each` attribute"))?;
+    let each_expr = each_expr
+        .ok_or_else(|| Error::new(element.name().span(), "<For> requires `each` attribute"))?;
     let key_expr = key_expr.unwrap_or_else(|| quote! { |_| () });
     let pattern = pattern_tokens.unwrap_or_else(|| quote! { __item });
 
@@ -279,33 +271,20 @@ fn is_component_tag(name: &NodeName) -> Result<bool> {
                 Ok(false)
             }
         }
-        NodeName::Punctuated(punctuated) => {
-            if let Some(pair) = punctuated.pairs().next_back() {
-                let ident = match pair {
-                    syn::punctuated::Pair::Punctuated(fragment, _) => fragment.clone(),
-                    syn::punctuated::Pair::End(fragment) => fragment.clone(),
-                };
-                Ok(ident
-                    .to_string()
-                    .chars()
-                    .next()
-                    .map(|c| c.is_uppercase())
-                    .unwrap_or(false))
-            } else {
-                Ok(false)
-            }
-        }
-        NodeName::Block(block) => Err(Error::new(
-            block.span(),
-            "dynamic tag names are not supported",
-        )),
+        NodeName::Punctuated(_) => Ok(false),
+        NodeName::Block(_) => Ok(false),
     }
 }
 
 fn builtin_builder(name: &NodeName) -> Result<TokenStream> {
     let lookup = match name {
         NodeName::Path(path) => path_to_string(path),
-        NodeName::Punctuated(_) => name.to_string(),
+        NodeName::Punctuated(punct) => {
+            return Err(Error::new(
+                punct.span(),
+                "punctuated tag names are not supported",
+            ))
+        }
         NodeName::Block(block) => {
             return Err(Error::new(
                 block.span(),
@@ -314,14 +293,70 @@ fn builtin_builder(name: &NodeName) -> Result<TokenStream> {
         }
     };
 
-    let normalized = lookup.to_lowercase().replace([':', '-'], "");
-
-    let builder = match normalized.as_str() {
+    let builder = match lookup.as_str() {
         "control" => quote! { grui::classes::control() },
-        "panel" => quote! { grui::classes::panel() },
-        "vboxcontainer" => quote! { grui::classes::vboxcontainer() },
-        "button" => quote! { grui::classes::button() },
+        "colorrect" | "color_rect" => quote! { grui::classes::color_rect() },
+        "omni" => quote! { grui::classes::omni() },
+        "itemlist" | "item_list" => quote! { grui::classes::item_list() },
         "label" => quote! { grui::classes::label() },
+        "lineedit" | "line_edit" => quote! { grui::classes::line_edit() },
+        "menubar" | "menu_bar" => quote! { grui::classes::menu_bar() },
+        "ninepatchrect" | "nine_patch_rect" => quote! { grui::classes::nine_patch_rect() },
+        "panel" => quote! { grui::classes::panel() },
+        "referencerect" | "reference_rect" => quote! { grui::classes::reference_rect() },
+        "richtextlabel" | "rich_text_label" => quote! { grui::classes::rich_text_label() },
+        "tabbar" | "tab_bar" => quote! { grui::classes::tab_bar() },
+        "textedit" | "text_edit" => quote! { grui::classes::text_edit() },
+        "texturerect" | "texture_rect" => quote! { grui::classes::texture_rect() },
+        "tree" => quote! { grui::classes::tree() },
+        "videostreamplayer" | "video_stream_player" => {
+            quote! { grui::classes::video_stream_player() }
+        }
+        "hseparator" | "h_separator" => quote! { grui::classes::h_separator() },
+        "vseparator" | "v_separator" => quote! { grui::classes::v_separator() },
+        "progressbar" | "progress_bar" => quote! { grui::classes::progress_bar() },
+        "spinbox" | "spin_box" => quote! { grui::classes::spin_box() },
+        "textureprogressbar" | "texture_progress_bar" => {
+            quote! { grui::classes::texture_progress_bar() }
+        }
+        "hslider" | "h_slider" => quote! { grui::classes::h_slider() },
+        "vslider" | "v_slider" => quote! { grui::classes::v_slider() },
+        "hscrollbar" | "h_scroll_bar" => quote! { grui::classes::h_scroll_bar() },
+        "vscrollbar" | "v_scroll_bar" => quote! { grui::classes::v_scroll_bar() },
+        "button" => quote! { grui::classes::button() },
+        "linkbutton" | "link_button" => quote! { grui::classes::link_button() },
+        "texturebutton" | "texture_button" => quote! { grui::classes::texture_button() },
+        "checkbox" | "check_box" => quote! { grui::classes::check_box() },
+        "checkboxbutton" | "check_box_button" => quote! { grui::classes::check_box_button() },
+        "colorpickerbutton" | "color_picker_button" => {
+            quote! { grui::classes::color_picker_button() }
+        }
+        "menubutton" | "menu_button" => quote! { grui::classes::menu_button() },
+        "optionbutton" | "option_button" => quote! { grui::classes::option_button() },
+        "container" => quote! { grui::classes::container() },
+        "aspectratiocontainer" | "aspect_ratio_container" => {
+            quote! { grui::classes::aspect_ratio_container() }
+        }
+        "boxcontainer" | "box_container" => quote! { grui::classes::box_container() },
+        "vboxcontainer" | "vbox_container" => quote! { grui::classes::vbox_container() },
+        "hboxcontainer" | "hbox_container" => quote! { grui::classes::hbox_container() },
+        "colorpicker" | "color_picker" => quote! { grui::classes::color_picker() },
+        "centercontainer" | "center_container" => quote! { grui::classes::center_container() },
+        "editorproperty" | "editor_property" => quote! { grui::classes::editor_property() },
+        "flowcontainer" | "flow_container" => quote! { grui::classes::flow_container() },
+        "hflowcontainer" | "h_flow_container" => quote! { grui::classes::h_flow_container() },
+        "vflowcontainer" | "v_flow_container" => quote! { grui::classes::v_flow_container() },
+        "gridcontainer" | "grid_container" => quote! { grui::classes::grid_container() },
+        "margincontainer" | "margin_container" => quote! { grui::classes::margin_container() },
+        "panelcontainer" | "panel_container" => quote! { grui::classes::panel_container() },
+        "scrollcontainer" | "scroll_container" => quote! { grui::classes::scroll_container() },
+        "splitcontainer" | "split_container" => quote! { grui::classes::split_container() },
+        "hsplitcontainer" | "h_split_container" => quote! { grui::classes::h_split_container() },
+        "vsplitcontainer" | "v_split_container" => quote! { grui::classes::v_split_container() },
+        "subviewportcontainer" | "sub_viewport_container" => {
+            quote! { grui::classes::sub_viewport_container() }
+        }
+        "tabcontainer" | "tab_container" => quote! { grui::classes::tab_container() },
         other => {
             return Err(Error::new(
                 name.span(),
@@ -366,7 +401,7 @@ fn attr_name(attr: &KeyedAttribute) -> Result<String> {
     Ok(attr.key.to_string())
 }
 
-fn attribute_value_expr(attr: &KeyedAttribute) -> Result<TokenStream> {
+fn attribute_value(attr: &KeyedAttribute, allow_missing: bool) -> Result<TokenStream> {
     match &attr.possible_value {
         KeyedAttributeValue::Value(value_expr) => match &value_expr.value {
             KVAttributeValue::Expr(expr) => Ok(quote! { #expr }),
@@ -375,24 +410,12 @@ fn attribute_value_expr(attr: &KeyedAttribute) -> Result<TokenStream> {
             }
         },
         KeyedAttributeValue::None => {
-            Err(Error::new(attr.span(), "attribute value is required here"))
-        }
-        KeyedAttributeValue::Binding(_) => Err(Error::new(
-            attr.span(),
-            "binding-style attributes are not supported",
-        )),
-    }
-}
-
-fn attribute_value_or_true(attr: &KeyedAttribute) -> Result<TokenStream> {
-    match &attr.possible_value {
-        KeyedAttributeValue::Value(value_expr) => match &value_expr.value {
-            KVAttributeValue::Expr(expr) => Ok(quote! { #expr }),
-            KVAttributeValue::InvalidBraced(_) => {
-                Err(Error::new(attr.span(), "invalid attribute expression"))
+            if allow_missing {
+                Ok(quote! { true })
+            } else {
+                Err(Error::new(attr.span(), "attribute value is required here"))
             }
-        },
-        KeyedAttributeValue::None => Ok(quote! { true }),
+        }
         KeyedAttributeValue::Binding(_) => Err(Error::new(
             attr.span(),
             "binding-style attributes are not supported",
@@ -448,32 +471,7 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
-    fn pretty(item: TokenStream) -> String {
-        let s = item.to_string();
-        normalize(&s)
-    }
-
-    fn normalize(s: &str) -> String {
-        let mut out = String::new();
-        let chars: Vec<char> = s.chars().collect();
-        let mut i = 0;
-        while i < chars.len() {
-            let c = chars[i];
-            if c == ',' {
-                let mut j = i + 1;
-                while j < chars.len() && chars[j].is_whitespace() {
-                    j += 1;
-                }
-                if j < chars.len() && (chars[j] == ')' || chars[j] == '}' || chars[j] == ']') {
-                    i = j;
-                    continue;
-                }
-            }
-            out.push(c);
-            i += 1;
-        }
-        out.split_whitespace().collect::<Vec<_>>().join(" ")
-    }
+    use crate::test_utils::pretty;
 
     #[test]
     fn simple_builtin_tree() {
@@ -489,7 +487,16 @@ mod tests {
         };
 
         let output = transform(input).expect("transform ok");
-        let expected = output.clone();
+        let expected = quote! {
+            grui::node::Node::fragment(vec![
+                grui::node::IntoNode::into_node(grui::classes::panel().build()),
+                grui::node::IntoNode::into_node(grui::classes::vbox_container().children((
+                    grui::node::IntoNode::into_node(grui::classes::button().on(grui::events::CLICK, resume).children(grui::node::Node::text("Resume"))),
+                    grui::node::IntoNode::into_node(grui::classes::button().children(grui::node::Node::text("Save"))),
+                    grui::node::IntoNode::into_node(grui::classes::button().children(grui::node::Node::text("Load")))
+                )))
+            ])
+        };
 
         assert_eq!(pretty(output), pretty(expected));
     }
@@ -531,7 +538,11 @@ mod tests {
         };
 
         let output = transform(input).expect("transform ok");
-        let expected = output.clone();
+        let expected = quote! {
+            grui::node::IntoNode::into_node(
+                grui::classes::button().on(grui::events::PRESSED, { Callable::from_fn(| | { counter.mutate(|c| *c += 1); }) }).children(grui::node::Node::text("Save"))
+            )
+        };
 
         assert_eq!(pretty(output), pretty(expected));
     }
@@ -561,7 +572,6 @@ mod tests {
             grui::node::IntoNode::into_node(MenuButton(MenuButtonProps {
                 label: "Resume",
                 on_pressed: { resume },
-                children: grui::node::Node::empty(),
             }))
         };
 
@@ -579,7 +589,13 @@ mod tests {
         };
 
         let output = transform(input).expect("transform ok");
-        let expected = output.clone();
+        let expected = quote! {
+            grui::node::IntoNode::into_node(grui::classes::vbox_container().children((
+                grui::node::IntoNode::into_node(grui::classes::button().children(grui::node::Node::text("One"))),
+                grui::node::IntoNode::into_node(grui::classes::button().children(grui::node::Node::text("Two"))),
+                grui::node::IntoNode::into_node(grui::classes::button().children(grui::node::Node::text("Three")))
+            )))
+        };
 
         assert_eq!(pretty(output), pretty(expected));
     }
@@ -599,7 +615,11 @@ mod tests {
         };
 
         let output = transform(input).expect("transform ok");
-        let expected = output.clone();
+        let expected = quote! {
+            grui::node::IntoNode::into_node(grui::classes::vbox_container().children(
+                grui::node::IntoNode::into_node({ (1..=10).map(|i| { control!(<label text={format!("{} {}", title, i)} />) }).collect::<Control>() })
+            ))
+        };
 
         assert_eq!(pretty(output), pretty(expected));
     }
@@ -612,7 +632,13 @@ mod tests {
             </For>
         };
         let output = transform(input).expect("transform ok");
-        let expected = output.clone();
+        let expected = quote! {
+            grui::reactive::for_each(
+                (| | (1..=5))(),
+                |i| *i,
+                |(i)| { grui::node::IntoNode::into_node(grui::classes::label().prop("text", { format!("Item {}", i) }).build()) }
+            )
+        };
         assert_eq!(pretty(output), pretty(expected));
     }
 
