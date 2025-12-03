@@ -1,42 +1,15 @@
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Control<T>
+use crate::node::Node;
+
+/// A trait implemented by stateful components that can render a virtual UI tree.
+pub trait Component {
+    fn render(&mut self) -> Node;
+}
+
+impl<T> Component for T
 where
-    T: Sized,
+    T: FnMut() -> Node,
 {
-    inner: T,
-}
-
-impl<T> Control<T> {
-    pub fn new(inner: T) -> Self {
-        Self { inner }
-    }
-
-    /// Unwraps the view, returning the inner type.
-    pub fn into_inner(self) -> T {
-        self.inner
-    }
-}
-
-pub trait Render: Sized {
-    type State: Sized; // TODO: unclear
-
-    fn build(self) -> Self::State;
-
-    fn rebuild(self, state: &mut Self::State);
-}
-
-pub trait IntoControl
-where
-    Self: Sized + Render + Send,
-{
-    fn into_control(self) -> Control<Self>;
-}
-
-impl<T> IntoControl for T
-where
-    T: Sized + Render + Send,
-{
-    fn into_control(self) -> Control<Self> {
-        Control { inner: self }
+    fn render(&mut self) -> Node {
+        self()
     }
 }
