@@ -96,7 +96,7 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
       #[derive(godot::register::GodotClass)]
       #[class(init, base=#base)]
       #vis struct #ident {
-          grui_renderer: Option<grui::renderer::Renderer>,
+          grui_renderer: Option<::grui::prelude::Renderer>,
           base: godot::obj::Base<godot::classes::#base>,
           #fields
       }
@@ -107,7 +107,7 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
             let props = #root_props {
               #fields_comp
             };
-            self.grui_renderer = Some(grui::renderer::Renderer::mount(#get_base, #root, props));
+            self.grui_renderer = Some(::grui::prelude::Renderer::mount(#get_base, #root, props));
           }
       }
     };
@@ -140,7 +140,7 @@ mod tests {
           #[derive(godot::register::GodotClass)]
           #[class(init, base=Control)]
           pub struct MyStruct {
-              grui_renderer: Option<grui::renderer::Renderer>,
+              grui_renderer: Option<::grui::prelude::Renderer>,
               base: godot::obj::Base<godot::classes::Control>,
               #[init(val = 10)]
               #[export]
@@ -155,7 +155,7 @@ mod tests {
                   field: self.field.clone(),
                   abc: self.abc.clone(),
                 };
-                self.grui_renderer = Some(grui::renderer::Renderer::mount(self.base.to_gd(), App, props));
+                self.grui_renderer = Some(::grui::prelude::Renderer::mount(self.base.to_gd(), App, props));
               }
           }
         };
@@ -176,7 +176,7 @@ mod tests {
             #[derive(godot::register::GodotClass)]
             #[class(init, base=Control)]
             struct Empty {
-                grui_renderer: Option<grui::renderer::Renderer>,
+                grui_renderer: Option<::grui::prelude::Renderer>,
                 base: godot::obj::Base<godot::classes::Control>,
             }
 
@@ -184,7 +184,7 @@ mod tests {
             impl IControl for Empty {
                 fn ready(&mut self) {
                   let props = AppProps {  };
-                  self.grui_renderer = Some(grui::renderer::Renderer::mount(self.base.to_gd(), App, props));
+                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(self.base.to_gd(), App, props));
                 }
             }
         };
@@ -204,7 +204,7 @@ mod tests {
             #[derive(godot::register::GodotClass)]
             #[class(init, base=Button)]
             struct Foo {
-                grui_renderer: Option<grui::renderer::Renderer>,
+                grui_renderer: Option<::grui::prelude::Renderer>,
                 base: godot::obj::Base<godot::classes::Button>,
                 a: String,
                 b: usize,
@@ -217,7 +217,7 @@ mod tests {
                     a: self.a.clone(),
                     b: self.b.clone(),
                   };
-                  self.grui_renderer = Some(grui::renderer::Renderer::mount(self.base.to_gd().upcast(), MyComp, props));
+                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(self.base.to_gd().upcast(), MyComp, props));
                 }
             }
         };

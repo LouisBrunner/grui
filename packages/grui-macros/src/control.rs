@@ -33,7 +33,7 @@ fn transform_node(node: &HtmlNode) -> Result<TokenStream> {
             Ok(quote! { #value })
         }
         HtmlNode::Block(block) => Ok(quote! { #block }),
-        HtmlNode::Comment(_) => Ok(quote! { grui::control::empty() }),
+        HtmlNode::Comment(_) => Ok(quote! { grui::prelude::empty() }),
         HtmlNode::Doctype(_) => Err(Error::new(
             Span::call_site(),
             "doctype nodes are not supported in grui templates",
@@ -47,7 +47,32 @@ fn transform_node(node: &HtmlNode) -> Result<TokenStream> {
 
 fn transform_fragment(children: &[HtmlNode]) -> Result<TokenStream> {
     let children = transform_children(children)?;
-    Ok(quote! { grui::control::fragment(vec![#(#children),*]) })
+    Ok(make_fragment(children))
+}
+
+fn make_fragment(children: Vec<TokenStream>) -> TokenStream {
+    quote! {
+        (#(#children,)*)
+    }
+}
+
+fn make_children(children: Vec<TokenStream>) -> Option<TokenStream> {
+    match children.len() {
+        0 => None,
+        1 => {
+            let child = &children[0];
+            Some(quote! { #child })
+        }
+        _ => Some(make_fragment(children)),
+    }
+}
+
+fn add_children(mut builder: TokenStream, children: Vec<TokenStream>) -> TokenStream {
+    for child in &children {
+        // FIXME: might need chunking
+        builder = quote! { #builder.child( #child ) };
+    }
+    builder
 }
 
 fn transform_element(element: &HtmlElement) -> Result<TokenStream> {
@@ -64,11 +89,7 @@ fn transform_builtin(element: &HtmlElement) -> Result<TokenStream> {
     let builder = builtin_builder(element.name())?;
     let mut builder = apply_attributes(builder, element)?;
     let children = transform_children(&element.children)?;
-
-    if !children.is_empty() {
-        builder = quote! { #builder.children(vec![#(#children),*]) };
-    }
-
+    builder = add_children(builder, children);
     Ok(quote! { #builder.build() })
 }
 
@@ -97,14 +118,7 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
     }
 
     let children = transform_children(&element.children)?;
-    let children_expr = match children.len() {
-        0 => None,
-        1 => {
-            let child = &children[0];
-            Some(quote! { #child })
-        }
-        _ => Some(quote! { grui::control::fragment(vec![#(#children),*]) }),
-    };
+    let children_expr = make_children(children);
 
     if let Some(children_expr) = children_expr {
         fields.push(quote! { children: #children_expr });
@@ -219,17 +233,10 @@ fn transform_for(element: &HtmlElement) -> Result<TokenStream> {
     let pattern = pattern_tokens.unwrap_or_else(|| quote! { __item });
 
     let children = transform_children(&element.children)?;
-    let body = match children.len() {
-        0 => quote! { grui::control::empty() },
-        1 => {
-            let child = &children[0];
-            quote! { #child }
-        }
-        _ => quote! { grui::control::fragment(vec![#(#children),*]) },
-    };
+    let body = make_children(children).unwrap_or(quote! { ::grui::prelude::empty() });
 
     let output = quote! {
-        grui::reactive::for_each(
+        ::grui::prelude::for_each(
             #each_expr,
             #key_expr,
             |#pattern| { #body }
@@ -277,68 +284,68 @@ fn builtin_builder(name: &NodeName) -> Result<TokenStream> {
     };
 
     let builder = match lookup.as_str() {
-        "control" => quote! { grui::classes::control() },
-        "colorrect" | "color_rect" => quote! { grui::classes::color_rect() },
-        "itemlist" | "item_list" => quote! { grui::classes::item_list() },
-        "label" => quote! { grui::classes::label() },
-        "lineedit" | "line_edit" => quote! { grui::classes::line_edit() },
-        "menubar" | "menu_bar" => quote! { grui::classes::menu_bar() },
-        "ninepatchrect" | "nine_patch_rect" => quote! { grui::classes::nine_patch_rect() },
-        "panel" => quote! { grui::classes::panel() },
-        "referencerect" | "reference_rect" => quote! { grui::classes::reference_rect() },
-        "richtextlabel" | "rich_text_label" => quote! { grui::classes::rich_text_label() },
-        "tabbar" | "tab_bar" => quote! { grui::classes::tab_bar() },
-        "textedit" | "text_edit" => quote! { grui::classes::text_edit() },
-        "texturerect" | "texture_rect" => quote! { grui::classes::texture_rect() },
-        "tree" => quote! { grui::classes::tree() },
+        "control" => quote! { ::grui::prelude::control() },
+        "colorrect" | "color_rect" => quote! { ::grui::prelude::color_rect() },
+        "itemlist" | "item_list" => quote! { ::grui::prelude::item_list() },
+        "label" => quote! { ::grui::prelude::label() },
+        "lineedit" | "line_edit" => quote! { ::grui::prelude::line_edit() },
+        "menubar" | "menu_bar" => quote! { ::grui::prelude::menu_bar() },
+        "ninepatchrect" | "nine_patch_rect" => quote! { ::grui::prelude::nine_patch_rect() },
+        "panel" => quote! { ::grui::prelude::panel() },
+        "referencerect" | "reference_rect" => quote! { ::grui::prelude::reference_rect() },
+        "richtextlabel" | "rich_text_label" => quote! { ::grui::prelude::rich_text_label() },
+        "tabbar" | "tab_bar" => quote! { ::grui::prelude::tab_bar() },
+        "textedit" | "text_edit" => quote! { ::grui::prelude::text_edit() },
+        "texturerect" | "texture_rect" => quote! { ::grui::prelude::texture_rect() },
+        "tree" => quote! { ::grui::prelude::tree() },
         "videostreamplayer" | "video_stream_player" => {
-            quote! { grui::classes::video_stream_player() }
+            quote! { ::grui::prelude::video_stream_player() }
         }
-        "hseparator" | "h_separator" => quote! { grui::classes::h_separator() },
-        "vseparator" | "v_separator" => quote! { grui::classes::v_separator() },
-        "progressbar" | "progress_bar" => quote! { grui::classes::progress_bar() },
-        "spinbox" | "spin_box" => quote! { grui::classes::spin_box() },
+        "hseparator" | "h_separator" => quote! { ::grui::prelude::h_separator() },
+        "vseparator" | "v_separator" => quote! { ::grui::prelude::v_separator() },
+        "progressbar" | "progress_bar" => quote! { ::grui::prelude::progress_bar() },
+        "spinbox" | "spin_box" => quote! { ::grui::prelude::spin_box() },
         "textureprogressbar" | "texture_progress_bar" => {
-            quote! { grui::classes::texture_progress_bar() }
+            quote! { ::grui::prelude::texture_progress_bar() }
         }
-        "hslider" | "h_slider" => quote! { grui::classes::h_slider() },
-        "vslider" | "v_slider" => quote! { grui::classes::v_slider() },
-        "hscrollbar" | "h_scroll_bar" => quote! { grui::classes::h_scroll_bar() },
-        "vscrollbar" | "v_scroll_bar" => quote! { grui::classes::v_scroll_bar() },
-        "button" => quote! { grui::classes::button() },
-        "linkbutton" | "link_button" => quote! { grui::classes::link_button() },
-        "texturebutton" | "texture_button" => quote! { grui::classes::texture_button() },
-        "checkbox" | "check_box" => quote! { grui::classes::check_box() },
-        "checkboxbutton" | "check_box_button" => quote! { grui::classes::check_box_button() },
+        "hslider" | "h_slider" => quote! { ::grui::prelude::h_slider() },
+        "vslider" | "v_slider" => quote! { ::grui::prelude::v_slider() },
+        "hscrollbar" | "h_scroll_bar" => quote! { ::grui::prelude::h_scroll_bar() },
+        "vscrollbar" | "v_scroll_bar" => quote! { ::grui::prelude::v_scroll_bar() },
+        "button" => quote! { ::grui::prelude::button() },
+        "linkbutton" | "link_button" => quote! { ::grui::prelude::link_button() },
+        "texturebutton" | "texture_button" => quote! { ::grui::prelude::texture_button() },
+        "checkbox" | "check_box" => quote! { ::grui::prelude::check_box() },
+        "checkboxbutton" | "check_box_button" => quote! { ::grui::prelude::check_box_button() },
         "colorpickerbutton" | "color_picker_button" => {
-            quote! { grui::classes::color_picker_button() }
+            quote! { ::grui::prelude::color_picker_button() }
         }
-        "menubutton" | "menu_button" => quote! { grui::classes::menu_button() },
-        "optionbutton" | "option_button" => quote! { grui::classes::option_button() },
-        "container" => quote! { grui::classes::container() },
+        "menubutton" | "menu_button" => quote! { ::grui::prelude::menu_button() },
+        "optionbutton" | "option_button" => quote! { ::grui::prelude::option_button() },
+        "container" => quote! { ::grui::prelude::container() },
         "aspectratiocontainer" | "aspect_ratio_container" => {
-            quote! { grui::classes::aspect_ratio_container() }
+            quote! { ::grui::prelude::aspect_ratio_container() }
         }
-        "boxcontainer" | "box_container" => quote! { grui::classes::box_container() },
-        "vboxcontainer" | "v_box_container" => quote! { grui::classes::v_box_container() },
-        "hboxcontainer" | "h_box_container" => quote! { grui::classes::h+box_container() },
-        "colorpicker" | "color_picker" => quote! { grui::classes::color_picker() },
-        "centercontainer" | "center_container" => quote! { grui::classes::center_container() },
-        "editorproperty" | "editor_property" => quote! { grui::classes::editor_property() },
-        "flowcontainer" | "flow_container" => quote! { grui::classes::flow_container() },
-        "hflowcontainer" | "h_flow_container" => quote! { grui::classes::h_flow_container() },
-        "vflowcontainer" | "v_flow_container" => quote! { grui::classes::v_flow_container() },
-        "gridcontainer" | "grid_container" => quote! { grui::classes::grid_container() },
-        "margincontainer" | "margin_container" => quote! { grui::classes::margin_container() },
-        "panelcontainer" | "panel_container" => quote! { grui::classes::panel_container() },
-        "scrollcontainer" | "scroll_container" => quote! { grui::classes::scroll_container() },
-        "splitcontainer" | "split_container" => quote! { grui::classes::split_container() },
-        "hsplitcontainer" | "h_split_container" => quote! { grui::classes::h_split_container() },
-        "vsplitcontainer" | "v_split_container" => quote! { grui::classes::v_split_container() },
+        "boxcontainer" | "box_container" => quote! { ::grui::prelude::box_container() },
+        "vboxcontainer" | "v_box_container" => quote! { ::grui::prelude::v_box_container() },
+        "hboxcontainer" | "h_box_container" => quote! { ::grui::prelude::h+box_container() },
+        "colorpicker" | "color_picker" => quote! { ::grui::prelude::color_picker() },
+        "centercontainer" | "center_container" => quote! { ::grui::prelude::center_container() },
+        "editorproperty" | "editor_property" => quote! { ::grui::prelude::editor_property() },
+        "flowcontainer" | "flow_container" => quote! { ::grui::prelude::flow_container() },
+        "hflowcontainer" | "h_flow_container" => quote! { ::grui::prelude::h_flow_container() },
+        "vflowcontainer" | "v_flow_container" => quote! { ::grui::prelude::v_flow_container() },
+        "gridcontainer" | "grid_container" => quote! { ::grui::prelude::grid_container() },
+        "margincontainer" | "margin_container" => quote! { ::grui::prelude::margin_container() },
+        "panelcontainer" | "panel_container" => quote! { ::grui::prelude::panel_container() },
+        "scrollcontainer" | "scroll_container" => quote! { ::grui::prelude::scroll_container() },
+        "splitcontainer" | "split_container" => quote! { ::grui::prelude::split_container() },
+        "hsplitcontainer" | "h_split_container" => quote! { ::grui::prelude::h_split_container() },
+        "vsplitcontainer" | "v_split_container" => quote! { ::grui::prelude::v_split_container() },
         "subviewportcontainer" | "sub_viewport_container" => {
-            quote! { grui::classes::sub_viewport_container() }
+            quote! { ::grui::prelude::sub_viewport_container() }
         }
-        "tabcontainer" | "tab_container" => quote! { grui::classes::tab_container() },
+        "tabcontainer" | "tab_container" => quote! { ::grui::prelude::tab_container() },
         other => {
             return Err(Error::new(
                 name.span(),
@@ -440,14 +447,14 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::control::fragment(vec![
-                grui::classes::panel().build(),
-                grui::classes::v_box_container().children(vec![
-                  grui::classes::button().on("click", resume).prop("text", "Resume").build(),
-                  grui::classes::button().prop("text", "Save").build(),
-                  grui::classes::button().prop("text", "Load").build()
-                ]).build()
-            ])
+            (
+              ::grui::prelude::panel().build(),
+              ::grui::prelude::v_box_container()
+                .child(::grui::prelude::button().on("click", resume).prop("text", "Resume").build())
+                .child(::grui::prelude::button().prop("text", "Save").build())
+                .child(::grui::prelude::button().prop("text", "Load").build())
+                .build(),
+            )
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -461,7 +468,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::classes::button().prop("text", "Click me").build()
+            ::grui::prelude::button().prop("text", "Click me").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -475,7 +482,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::classes::button().on("pressed", on_pressed).prop("text", "Save").build()
+            ::grui::prelude::button().on("pressed", on_pressed).prop("text", "Save").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -491,7 +498,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::classes::button().on("pressed", { Callable::from_fn(| | { counter.mutate(|c| *c += 1); }) }).prop("text", "Save").build()
+            ::grui::prelude::button().on("pressed", { Callable::from_fn(| | { counter.mutate(|c| *c += 1); }) }).prop("text", "Save").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -505,7 +512,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::classes::label().prop("text", format!("{} {}", title, i)).build()
+            ::grui::prelude::label().prop("text", format!("{} {}", title, i)).build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -540,11 +547,11 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::classes::v_box_container().children(vec![
-              grui::classes::button().prop("text", "One").build(),
-              grui::classes::button().prop("text", "Two").build(),
-              grui::classes::button().prop("text", "Three").build()
-            ]).build()
+            ::grui::prelude::v_box_container()
+              .child(::grui::prelude::button().prop("text", "One").build())
+              .child(::grui::prelude::button().prop("text", "Two").build())
+              .child(::grui::prelude::button().prop("text", "Three").build())
+              .build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -566,9 +573,9 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::classes::v_box_container().children(vec![
+            ::grui::prelude::v_box_container().child(
               { (1..=10).map(|i| { control! { <label text=format!("{} {}", title, i) />} }).collect::<Vec<_> >() }
-            ]).build()
+            ).build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -583,10 +590,10 @@ mod tests {
         };
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::reactive::for_each(
+            ::grui::prelude::for_each(
                 (| | (1..=5))(),
                 |i| *i,
-                |(i)| { grui::classes::label().prop("text", format!("Item {}", i)).build() }
+                |(i)| { ::grui::prelude::label().prop("text", format!("Item {}", i)).build() }
             )
         };
         assert_eq!(pretty(output), pretty(expected));
@@ -600,7 +607,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            grui::classes::panel().build()
+            ::grui::prelude::panel().build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -639,7 +646,7 @@ mod tests {
         let output = transform(input).expect("transform ok");
         let expected = quote! {
             MyComp(MyCompProps {
-                children: grui::classes::button().prop("text", "Click me").build(),
+                children: ::grui::prelude::button().prop("text", "Click me").build(),
             })
         };
 

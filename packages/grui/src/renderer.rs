@@ -1,5 +1,24 @@
-use crate::control::IntoControl;
+use crate::{controls::GControl, controls::IntoControl};
 use godot::{classes::Control, obj::Gd};
+
+pub trait IntoRender {
+    type Output;
+
+    fn into_render(self) -> Self::Output;
+}
+
+impl<T: Render> IntoRender for T {
+    type Output = Self;
+
+    fn into_render(self) -> Self::Output {
+        self
+    }
+}
+
+pub trait Render: Sized {
+    fn to_controls(self) -> Vec<Gd<Control>>;
+    fn to_json(self) -> String;
+}
 
 pub struct Renderer {
     parent: Gd<Control>,
@@ -11,8 +30,9 @@ impl Renderer {
     where
         C: FnOnce(P) -> T,
         T: IntoControl,
+        T: Render,
     {
-        let controls = component(props).to_controls();
+        let controls = component(props).into_control().to_controls();
         for control in &controls {
             parent.add_child(control);
         }
@@ -32,8 +52,9 @@ impl TestRenderer {
     where
         C: FnOnce(P) -> T,
         T: IntoControl,
+        T: Render,
     {
-        let result = component(props).to_json();
+        let result = component(props).into_control().to_json();
         TestRenderer { result }
     }
 

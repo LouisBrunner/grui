@@ -1,13 +1,11 @@
-pub mod classes;
-pub mod control;
-mod godot;
+pub(crate) mod controls;
+pub(crate) mod godot;
 pub mod reactive;
 pub mod renderer;
 
 pub mod prelude {
-    pub use crate::classes;
-    pub use crate::control::IntoControl;
-    pub use crate::reactive;
-    pub use crate::renderer::Renderer;
+    pub use crate::controls::*;
+    pub use crate::godot::classes::*;
+    pub use crate::renderer::{IntoRender, Renderer};
     pub use grui_macros::*;
 }

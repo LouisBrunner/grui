@@ -41,9 +41,6 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
     let attrs = function.attrs.clone();
     function.attrs.clear();
 
-    // TODO: check output first
-    function.sig.output = syn::parse_quote! { -> impl grui::control::IntoControl };
-
     let props = quote! {
         #[derive(Clone, Debug)]
         #vis struct #props_ident {
@@ -127,7 +124,7 @@ mod tests {
             }
 
             #[allow(non_snake_case)]
-            pub fn Button(props: ButtonProps) -> impl grui::control::IntoControl {
+            pub fn Button(props: ButtonProps) -> impl IntoControl {
                 let ButtonProps { label, disabled } = props;
                 control! {
                     <button disabled=disabled text=label />
@@ -160,7 +157,7 @@ mod tests {
             }
 
             #[allow(non_snake_case)]
-            fn MenuButton(props: MenuButtonProps) -> impl grui::control::IntoControl {
+            fn MenuButton(props: MenuButtonProps) -> impl IntoControl {
                 let MenuButtonProps { label, on_pressed } = props;
                 control! {
                     <button on:pressed=on_pressed text=label />
@@ -188,7 +185,7 @@ mod tests {
             struct SimpleButtonProps { }
 
             #[allow(non_snake_case)]
-            fn SimpleButton(_: SimpleButtonProps) -> impl grui::control::IntoControl {
+            fn SimpleButton(_: SimpleButtonProps) -> impl IntoControl {
                 control! {<button text="Click" />}
             }
         };
@@ -201,7 +198,7 @@ mod tests {
     #[test]
     fn captures_var_names() {
         let args = r#""#.parse().unwrap();
-        let input = quote! { fn foo(bar: i32, children: String) -> impl grui::control::IntoControl { control! {<label max_lines_visible=bar text=children />} } };
+        let input = quote! { fn foo(bar: i32, children: String) -> impl IntoControl { control! {<label max_lines_visible=bar text=children />} } };
         let output = transform(args, input).expect("ok");
         let expected = quote! {
             #[derive(Clone, Debug)]
@@ -211,7 +208,7 @@ mod tests {
             }
 
             #[allow(non_snake_case)]
-            fn Foo(props: FooProps) -> impl grui::control::IntoControl {
+            fn Foo(props: FooProps) -> impl IntoControl {
                 let FooProps { bar, children } = props;
                 control! {<label max_lines_visible=bar text=children />}
             }
@@ -222,8 +219,7 @@ mod tests {
     #[test]
     fn rejects_receiver() {
         let args = r#""#.parse().unwrap();
-        let input =
-            quote! { fn method(&self) -> impl grui::control::IntoControl { control! {<label/>} } };
+        let input = quote! { fn method(&self) -> impl IntoControl { control! {<label/>} } };
         let err = transform(args, input).unwrap_err();
         let msg = err.to_string();
         let expected = "component functions cannot take self";

@@ -58,7 +58,7 @@ mod tests {
                     control! {
                         <label text=format!("{} {}", title, i) />
                     }
-                }).collect::<Vec<_>>()
+                }).collect_control()
               }
           </vboxcontainer>
         }
