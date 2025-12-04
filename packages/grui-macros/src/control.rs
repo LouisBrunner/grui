@@ -316,7 +316,7 @@ fn builtin_builder(name: &NodeName) -> Result<TokenStream> {
         "linkbutton" | "link_button" => quote! { ::grui::prelude::link_button() },
         "texturebutton" | "texture_button" => quote! { ::grui::prelude::texture_button() },
         "checkbox" | "check_box" => quote! { ::grui::prelude::check_box() },
-        "checkboxbutton" | "check_box_button" => quote! { ::grui::prelude::check_box_button() },
+        "checkbutton" | "check_button" => quote! { ::grui::prelude::check_button() },
         "colorpickerbutton" | "color_picker_button" => {
             quote! { ::grui::prelude::color_picker_button() }
         }
@@ -328,7 +328,7 @@ fn builtin_builder(name: &NodeName) -> Result<TokenStream> {
         }
         "boxcontainer" | "box_container" => quote! { ::grui::prelude::box_container() },
         "vboxcontainer" | "v_box_container" => quote! { ::grui::prelude::v_box_container() },
-        "hboxcontainer" | "h_box_container" => quote! { ::grui::prelude::h+box_container() },
+        "hboxcontainer" | "h_box_container" => quote! { ::grui::prelude::h_box_container() },
         "colorpicker" | "color_picker" => quote! { ::grui::prelude::color_picker() },
         "centercontainer" | "center_container" => quote! { ::grui::prelude::center_container() },
         "editorproperty" | "editor_property" => quote! { ::grui::prelude::editor_property() },
