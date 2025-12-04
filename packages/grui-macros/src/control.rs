@@ -52,7 +52,7 @@ fn transform_fragment(children: &[HtmlNode]) -> Result<TokenStream> {
 
 fn make_fragment(children: Vec<TokenStream>) -> TokenStream {
     quote! {
-        (#(#children,)*)
+      ::grui::prelude::fragment![#(#children,)*]
     }
 }
 
@@ -428,9 +428,8 @@ fn path_to_string(path: &syn::ExprPath) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pretty_assertions::assert_eq;
-
     use crate::test_utils::pretty;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn simple_builtin_tree() {
@@ -447,14 +446,14 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            (
+            ::grui::prelude::fragment![
               ::grui::prelude::panel().build(),
               ::grui::prelude::v_box_container()
                 .child(::grui::prelude::button().on("click", resume).prop("text", "Resume").build())
                 .child(::grui::prelude::button().prop("text", "Save").build())
                 .child(::grui::prelude::button().prop("text", "Load").build())
                 .build(),
-            )
+            ]
         };
 
         assert_eq!(pretty(output), pretty(expected));

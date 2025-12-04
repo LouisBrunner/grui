@@ -2,6 +2,7 @@
 mod tests {
     use godot::prelude::*;
     use grui::{prelude::*, renderer::TestRenderer};
+    use pretty_assertions::assert_eq;
 
     #[component]
     fn Simple(a: u32, b: String) -> impl IntoControl {
@@ -19,12 +20,15 @@ mod tests {
         let renderer = TestRenderer::mount(Simple, props);
         assert_eq!(
             renderer.snapshot(),
-            r#"{"type":"label","props":{"text":"a: 42, b: dauphin"}}"#
+            r#"{"type": "Label", "props": {"text": "a: 42, b: dauphin"}}"#
         );
     }
 
     #[component]
-    fn Builtins(resume: Callable) -> impl IntoControl {
+    fn Builtins<F>(resume: F) -> impl IntoControl
+    where
+        F: CompatibleFn,
+    {
         control! {
             <>
                 <panel />
@@ -42,10 +46,16 @@ mod tests {
     #[test]
     fn with_builtins() {
         let props = BuiltinsProps {
-            resume: Callable::invalid(),
+            resume: move |_| {
+                godot_print!("Resumed!");
+                Ok(Variant::nil())
+            },
         };
         let renderer = TestRenderer::mount(Builtins, props);
-        assert_eq!(renderer.snapshot(), r#"{}"#);
+        assert_eq!(
+            renderer.snapshot(),
+            r#"{"type": "Panel"}, {"type": "VBoxContainer", "children": [{"type": "Button", "props": {"text": "Resume"}}, {"type": "Button", "props": {"text": "Save"}}, {"type": "Button", "props": {"text": "Load"}}]}"#
+        );
     }
 
     #[component]
@@ -68,7 +78,10 @@ mod tests {
     fn with_static_iter() {
         let props = StaticIterProps {};
         let renderer = TestRenderer::mount(StaticIter, props);
-        assert_eq!(renderer.snapshot(), r#"{}"#);
+        assert_eq!(
+            renderer.snapshot(),
+            r#"{"type": "VBoxContainer", "children": [{"type": "Label", "props": {"text": "Item 1"}}, {"type": "Label", "props": {"text": "Item 2"}}, {"type": "Label", "props": {"text": "Item 3"}}, {"type": "Label", "props": {"text": "Item 4"}}, {"type": "Label", "props": {"text": "Item 5"}}, {"type": "Label", "props": {"text": "Item 6"}}, {"type": "Label", "props": {"text": "Item 7"}}, {"type": "Label", "props": {"text": "Item 8"}}, {"type": "Label", "props": {"text": "Item 9"}}, {"type": "Label", "props": {"text": "Item 10"}}]}"#
+        );
     }
 
     #[component]
@@ -89,6 +102,9 @@ mod tests {
             label: "Custom Label".to_string(),
         };
         let renderer = TestRenderer::mount(Custom, props);
-        assert_eq!(renderer.snapshot(), r#"{}"#);
+        assert_eq!(
+            renderer.snapshot(),
+            r#"{"type": "Panel", "children": [{"type": "Label", "props": {"text": "Custom Label"}}, {"type": "Label", "props": {"text": "a: 10, b: hello"}}]}"#
+        );
     }
 }

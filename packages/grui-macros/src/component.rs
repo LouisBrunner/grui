@@ -13,6 +13,8 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
     function.sig.ident = make_snake_case(&function.sig.ident);
     let props_ident = format_ident!("{}Props", function.sig.ident);
 
+    let (impl_generics, ty_generics, where_clause) = function.sig.generics.split_for_impl();
+
     let (field_idents, field_types) = extract_fields(&function.sig)?;
     let has_fields = !field_idents.is_empty();
     let destructure: Option<TokenStream> = if has_fields {
@@ -25,7 +27,7 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
         function
             .sig
             .inputs
-            .push(syn::parse_quote! { props: #props_ident });
+            .push(syn::parse_quote! { props: #props_ident #ty_generics });
         function
             .block
             .stmts
@@ -34,7 +36,7 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
         function
             .sig
             .inputs
-            .push(syn::parse_quote! { _: #props_ident });
+            .push(syn::parse_quote! { _: #props_ident #ty_generics });
     }
 
     let vis = function.vis.clone();
@@ -43,7 +45,7 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
 
     let props = quote! {
         #[derive(Clone, Debug)]
-        #vis struct #props_ident {
+        #vis struct #props_ident #impl_generics #where_clause {
             #(pub #field_idents: #field_types,)*
         }
     };

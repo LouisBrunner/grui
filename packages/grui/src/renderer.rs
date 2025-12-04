@@ -1,4 +1,4 @@
-use crate::{controls::GControl, controls::IntoControl};
+use crate::controls::IntoControl;
 use godot::{classes::Control, obj::Gd};
 
 pub trait IntoRender {

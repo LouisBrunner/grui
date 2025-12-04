@@ -16,4 +16,4 @@ rstml-control-flow = "0.1.1"
 syn = { version = "2.0.98", features = ["full"] }
 
 [dev-dependencies]
-pretty_assertions = "1.4.1"
+pretty_assertions = { workspace = true }

@@ -4,6 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+frunk = "0.4.4"
 godot = { workspace = true }
 grui-macros = { workspace = true }
 next_tuple = "0.1.0"
+strum = { version = "0.27.2", features = ["derive"] }

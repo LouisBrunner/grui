@@ -1,25 +1,22 @@
 mod builtin;
-mod children;
 mod empty;
-mod fragment;
 mod std;
+pub mod tuples;
 
 use crate::renderer::Render;
 pub(crate) use builtin::BuiltinControl;
-pub use children::HasChild;
 pub use empty::empty;
-pub use fragment::fragment;
-pub use std::CollectControl;
-
 use godot::{classes::Control, obj::Gd};
+pub use std::CollectControl;
+pub use tuples::CompatibleFn;
 
-pub trait IntoControl: Sized + Send + Render {
+pub trait IntoControl: Sized + Render {
     fn into_control(self) -> GControl<Self>;
 }
 
 impl<T> IntoControl for T
 where
-    T: Sized + Send + Render,
+    T: Sized + Render,
 {
     fn into_control(self) -> GControl<Self> {
         GControl { inner: self }
