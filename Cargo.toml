@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["packages/grui", "packages/grui-macros", "packages/grui-tests"]
+members = ["packages/grui", "packages/grui-macros", "packages/grui-tests", "packages/example-basic"]
 
 [workspace.package]
 version = "0.0.1"

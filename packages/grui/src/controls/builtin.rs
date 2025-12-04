@@ -73,7 +73,7 @@ where
         }
         let children = self.children.gather_json();
         if !children.is_empty() {
-            json.push_str(&format!(r#", "children": {}"#, children.join(",")));
+            json.push_str(&format!(r#", "children": [{}]"#, children.join(",")));
         }
         json.push('}');
         json

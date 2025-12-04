@@ -1,0 +1,12 @@
+[package]
+name = "grui-example-basic"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+godot = { workspace = true }
+grui = { workspace = true }
