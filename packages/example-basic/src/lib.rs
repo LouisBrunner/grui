@@ -3,7 +3,7 @@ use grui::prelude::*;
 
 #[component]
 fn Basic() -> impl IntoControl {
-    let handler = move |_| {
+    let handler = move |_: &[&Variant]| {
         godot_print!("Resumed!");
         Ok(Variant::nil())
     };

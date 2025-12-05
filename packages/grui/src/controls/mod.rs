@@ -1,14 +1,16 @@
 mod builtin;
 mod empty;
+mod fragment;
 mod std;
-pub mod tuples;
+pub mod visitors;
 
 use crate::renderer::Render;
-pub(crate) use builtin::BuiltinControl;
+pub(crate) use builtin::Builtin;
 pub use empty::empty;
+pub use fragment::fragment;
 use godot::{classes::Control, obj::Gd};
 pub use std::CollectControl;
-pub use tuples::CompatibleFn;
+pub use visitors::*;
 
 pub trait IntoControl: Sized + Render {
     fn into_control(self) -> GControl<Self>;

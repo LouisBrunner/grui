@@ -52,7 +52,8 @@ fn transform_fragment(children: &[HtmlNode]) -> Result<TokenStream> {
 
 fn make_fragment(children: Vec<TokenStream>) -> TokenStream {
     quote! {
-      ::grui::prelude::fragment![#(#children,)*]
+      ::grui::prelude::fragment()
+        #(.child( #children ))*
     }
 }
 
@@ -439,21 +440,26 @@ mod tests {
                 <vboxcontainer>
                     <button on:click=resume text="Resume" />
                     <button text="Save" />
-                    <button text="Load" />
+                    <>
+                      <button text="Load" />
+                    </>
                 </vboxcontainer>
             </>
         };
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::fragment![
-              ::grui::prelude::panel().build(),
-              ::grui::prelude::v_box_container()
+            ::grui::prelude::fragment()
+              .child(::grui::prelude::panel().build())
+              .child(::grui::prelude::v_box_container()
                 .child(::grui::prelude::button().on("click", resume).prop("text", "Resume").build())
                 .child(::grui::prelude::button().prop("text", "Save").build())
-                .child(::grui::prelude::button().prop("text", "Load").build())
-                .build(),
-            ]
+                .child(
+                  ::grui::prelude::fragment()
+                    .child(::grui::prelude::button().prop("text", "Load").build())
+                )
+                .build()
+              )
         };
 
         assert_eq!(pretty(output), pretty(expected));

@@ -20,7 +20,7 @@ mod tests {
         let renderer = TestRenderer::mount(Simple, props);
         assert_eq!(
             renderer.snapshot(),
-            r#"{"type": "Label", "props": {"text": "a: 42, b: dauphin"}}"#
+            r#"[{"type": "Label", "props": {"text": "a: 42, b: dauphin"}}]"#
         );
     }
 
@@ -80,7 +80,7 @@ mod tests {
         let renderer = TestRenderer::mount(StaticIter, props);
         assert_eq!(
             renderer.snapshot(),
-            r#"{"type": "VBoxContainer", "children": [{"type": "Label", "props": {"text": "Item 1"}}, {"type": "Label", "props": {"text": "Item 2"}}, {"type": "Label", "props": {"text": "Item 3"}}, {"type": "Label", "props": {"text": "Item 4"}}, {"type": "Label", "props": {"text": "Item 5"}}, {"type": "Label", "props": {"text": "Item 6"}}, {"type": "Label", "props": {"text": "Item 7"}}, {"type": "Label", "props": {"text": "Item 8"}}, {"type": "Label", "props": {"text": "Item 9"}}, {"type": "Label", "props": {"text": "Item 10"}}]}"#
+            r#"[{"type": "VBoxContainer", "children": [{"type": "Label", "props": {"text": "Item 1"}}, {"type": "Label", "props": {"text": "Item 2"}}, {"type": "Label", "props": {"text": "Item 3"}}, {"type": "Label", "props": {"text": "Item 4"}}, {"type": "Label", "props": {"text": "Item 5"}}, {"type": "Label", "props": {"text": "Item 6"}}, {"type": "Label", "props": {"text": "Item 7"}}, {"type": "Label", "props": {"text": "Item 8"}}, {"type": "Label", "props": {"text": "Item 9"}}, {"type": "Label", "props": {"text": "Item 10"}}]}]"#
         );
     }
 
@@ -104,7 +104,7 @@ mod tests {
         let renderer = TestRenderer::mount(Custom, props);
         assert_eq!(
             renderer.snapshot(),
-            r#"{"type": "Panel", "children": [{"type": "Label", "props": {"text": "Custom Label"}}, {"type": "Label", "props": {"text": "a: 10, b: hello"}}]}"#
+            r#"[{"type": "Panel", "children": [{"type": "Label", "props": {"text": "Custom Label"}}, {"type": "Label", "props": {"text": "a: 10, b: hello"}}]}]"#
         );
     }
 }

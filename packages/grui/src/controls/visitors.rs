@@ -8,38 +8,6 @@ use godot::{
 };
 use std::collections::HashMap;
 
-impl Render for HNil {
-    fn to_controls(self) -> Vec<Gd<Control>> {
-        Vec::new()
-    }
-
-    fn to_json(self) -> String {
-        String::new()
-    }
-}
-
-impl<Head, Tail> Render for HCons<Head, Tail>
-where
-    Head: Render,
-    Tail: Render,
-{
-    fn to_controls(self) -> Vec<Gd<Control>> {
-        let mut controls = self.head.to_controls();
-        controls.extend(self.tail.to_controls());
-        controls
-    }
-
-    fn to_json(self) -> String {
-        let head_json = self.head.to_json();
-        let tail_json = self.tail.to_json();
-        if tail_json.is_empty() {
-            head_json
-        } else {
-            format!("{}, {}", head_json, tail_json)
-        }
-    }
-}
-
 pub trait ChildrenGatherer {
     fn gather_controls(self) -> Vec<Gd<Control>>;
     fn gather_json(self) -> Vec<String>;

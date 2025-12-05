@@ -10,7 +10,7 @@ impl<T: Render> Render for Vec<T> {
 
     fn to_json(self) -> String {
         let parts: Vec<String> = self.into_iter().map(|child| child.to_json()).collect();
-        format!("[{}]", parts.join(", "))
+        format!("{}", parts.join(", "))
     }
 }
 

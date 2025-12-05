@@ -1,7 +1,7 @@
 use crate::{
-    controls::{BuiltinControl, IntoControl},
+    controls::{Builtin, IntoControl},
     godot::ty::GDType,
-    prelude::tuples::{ChildrenGatherer, PropsGatherer, SignalsGatherer},
+    prelude::visitors::{ChildrenGatherer, PropsGatherer, SignalsGatherer},
     renderer::IntoRender,
 };
 use frunk::{hlist::HList, HCons, HNil};
@@ -27,14 +27,14 @@ impl GDClassBuilder {
     }
 }
 
-impl<Pp, Sg, Ch> GDClass<Pp, Sg, Ch>
-where
-    Pp: HList + PropsGatherer,
-    Sg: HList + SignalsGatherer,
-    Ch: HList + ChildrenGatherer,
-{
-    pub fn build(self) -> impl IntoControl {
-        BuiltinControl::new(self.ty, self.props, self.signals, self.children)
+impl<Pp, Sg, Ch> GDClass<Pp, Sg, Ch> {
+    pub fn build(self) -> impl IntoControl
+    where
+        Pp: HList + PropsGatherer,
+        Sg: HList + SignalsGatherer,
+        Ch: HList + ChildrenGatherer,
+    {
+        Builtin::new(self.ty, self.props, self.signals, self.children)
     }
 }
 
@@ -66,7 +66,7 @@ impl<Pp, Sg, Ch> GDClass<Pp, Sg, Ch>
 where
     Sg: HList,
 {
-    pub fn on<Fn>(self, name: &str, func: Fn) -> GDClass<Pp, HCons<(String, Fn), Sg>, Ch> {
+    pub fn on<F>(self, name: &str, func: F) -> GDClass<Pp, HCons<(String, F), Sg>, Ch> {
         GDClass {
             ty: self.ty,
             props: self.props,

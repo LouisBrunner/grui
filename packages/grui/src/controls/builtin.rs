@@ -1,21 +1,21 @@
 use crate::{
     godot::ty::GDType,
-    prelude::tuples::{ChildrenGatherer, PropsGatherer, SignalsGatherer},
+    prelude::visitors::{ChildrenGatherer, PropsGatherer, SignalsGatherer},
     renderer::Render,
 };
 use frunk::hlist::HList;
 use godot::{classes::Control, obj::Gd};
 
-pub(crate) struct BuiltinControl<Pp, Sg, Ch> {
+pub(crate) struct Builtin<Pp, Sg, Ch> {
     ty: GDType,
     props: Pp,
     signals: Sg,
     children: Ch,
 }
 
-impl<Pp, Sg, Ch> BuiltinControl<Pp, Sg, Ch> {
+impl<Pp, Sg, Ch> Builtin<Pp, Sg, Ch> {
     pub fn new(ty: GDType, props: Pp, signals: Sg, children: Ch) -> Self {
-        BuiltinControl {
+        Builtin {
             ty,
             props,
             signals,
@@ -24,7 +24,7 @@ impl<Pp, Sg, Ch> BuiltinControl<Pp, Sg, Ch> {
     }
 }
 
-impl<Pp, Sg, Ch> Render for BuiltinControl<Pp, Sg, Ch>
+impl<Pp, Sg, Ch> Render for Builtin<Pp, Sg, Ch>
 where
     Pp: HList + PropsGatherer,
     Sg: HList + SignalsGatherer,
@@ -73,7 +73,7 @@ where
         }
         let children = self.children.gather_json();
         if !children.is_empty() {
-            json.push_str(&format!(r#", "children": [{}]"#, children.join(",")));
+            json.push_str(&format!(r#", "children": [{}]"#, children.join(", ")));
         }
         json.push('}');
         json

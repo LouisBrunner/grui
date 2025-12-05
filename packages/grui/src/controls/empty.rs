@@ -1,13 +1,13 @@
 use crate::{controls::IntoControl, renderer::Render};
 use godot::{classes::Control, obj::Gd};
 
-pub(crate) struct EmptyControl;
+pub(crate) struct Empty;
 
 pub fn empty() -> impl IntoControl {
-    EmptyControl {}
+    Empty {}
 }
 
-impl Render for EmptyControl {
+impl Render for Empty {
     fn to_controls(self) -> Vec<Gd<Control>> {
         Vec::new()
     }

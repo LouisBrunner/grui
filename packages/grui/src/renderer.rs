@@ -54,7 +54,7 @@ impl TestRenderer {
         T: IntoControl,
         T: Render,
     {
-        let result = component(props).into_control().to_json();
+        let result = format!("[{}]", component(props).into_control().to_json());
         TestRenderer { result }
     }
 
