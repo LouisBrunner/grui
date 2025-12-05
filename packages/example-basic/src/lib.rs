@@ -10,7 +10,7 @@ fn Basic() -> impl IntoControl {
     control! {
         <panel />
         <vboxcontainer>
-            <button on:click=handler text="Resume" />
+            <button on:pressed=handler text="Resume" />
             <button text="Save" />
             <button text="Load" />
         </vboxcontainer>
