@@ -165,19 +165,34 @@ fn transform_children(nodes: &[HtmlNode]) -> Result<Vec<TokenStream>> {
     nodes.iter().map(transform_node).collect()
 }
 
+const FOR_TAG: &str = "For";
+const FOR_ENUMERATE_TAG: &str = "ForEnumerate";
+
 fn is_for_tag(name: &NodeName) -> Result<bool> {
-    const FOR_TAG: &str = "For";
+    const FOR_TAGS: &[&str] = &[FOR_TAG, FOR_ENUMERATE_TAG];
 
     match name {
-        NodeName::Path(path) => Ok(path_to_string(path) == FOR_TAG),
+        NodeName::Path(path) => Ok(FOR_TAGS.contains(&path_to_string(path).as_str())),
         NodeName::Punctuated(_) => Ok(false),
         NodeName::Block(_) => Ok(false),
     }
 }
 
 fn transform_for(element: &HtmlElement) -> Result<TokenStream> {
+    let name = match element.name() {
+        NodeName::Path(path) => path_to_string(path),
+        _ => {
+            return Err(Error::new(
+                element.span(),
+                format!("invalid node name {} for For tag", element.name()),
+            ));
+        }
+    };
+    let is_enum = name == FOR_ENUMERATE_TAG;
+
     let mut each_expr: Option<TokenStream> = None;
     let mut key_expr: Option<TokenStream> = None;
+    let mut children_expr: Option<TokenStream> = None;
     let mut pattern_tokens: Option<TokenStream> = None;
 
     for attribute in element.open_tag.attributes.iter() {
@@ -187,17 +202,20 @@ fn transform_for(element: &HtmlElement) -> Result<TokenStream> {
                 match key.as_str() {
                     "each" => {
                         let expr = attribute_value(attr, false)?;
-                        // require zero-arg closure; call it at runtime
-                        each_expr = Some(quote! { (#expr)() });
+                        each_expr = Some(expr);
                     }
                     "key" => {
                         let expr = attribute_value(attr, false)?;
-                        key_expr = Some(quote! { #expr });
+                        key_expr = Some(expr);
+                    }
+                    "children" => {
+                        let expr = attribute_value(attr, false)?;
+                        children_expr = Some(expr);
                     }
                     "let" => match &attr.possible_value {
                         KeyedAttributeValue::Binding(binding) => {
-                            let tokens = quote! { #binding };
-                            pattern_tokens = Some(tokens);
+                            let inputs = &binding.inputs;
+                            pattern_tokens = Some(quote! { #inputs });
                         }
                         KeyedAttributeValue::Value(value_expr) => match &value_expr.value {
                             KVAttributeValue::Expr(expr) => {
@@ -228,20 +246,63 @@ fn transform_for(element: &HtmlElement) -> Result<TokenStream> {
         }
     }
 
-    let each_expr = each_expr
-        .ok_or_else(|| Error::new(element.name().span(), "<For> requires `each` attribute"))?;
-    let key_expr = key_expr.unwrap_or_else(|| quote! { |_| () });
-    let pattern = pattern_tokens.unwrap_or_else(|| quote! { __item });
+    if pattern_tokens.is_some() && children_expr.is_some() {
+        return Err(Error::new(
+            element.name().span(),
+            format!(
+                "<{}> cannot have both a `let` pattern and a `children` property",
+                name
+            ),
+        ));
+    }
 
-    let children = transform_children(&element.children)?;
-    let body = make_children(children).unwrap_or(quote! { ::grui::prelude::empty() });
-
-    let output = quote! {
-        ::grui::prelude::for_each(
-            #each_expr,
-            #key_expr,
-            |#pattern| { #body }
+    let each_expr = each_expr.ok_or_else(|| {
+        Error::new(
+            element.name().span(),
+            format!("<{}> requires `each` attribute", name),
         )
+    })?;
+    let key_expr = key_expr.ok_or_else(|| {
+        Error::new(
+            element.name().span(),
+            format!("<{}> requires `key` attribute", name),
+        )
+    })?;
+
+    let children_expr = if let Some(pattern) = pattern_tokens {
+        let children = transform_children(&element.children)?;
+        let body = make_children(children).unwrap_or(quote! { ::grui::prelude::empty() });
+        quote! {
+          |#pattern| { #body }
+        }
+    } else if let Some(children) = children_expr {
+        children
+    } else {
+        return Err(Error::new(
+            element.name().span(),
+            format!(
+                "<{}> requires either a `let` pattern or a `children` property",
+                name
+            ),
+        ));
+    };
+
+    let output = if is_enum {
+        quote! {
+          ::grui::prelude::for_each_enumerate(
+              #each_expr,
+              #key_expr,
+              #children_expr,
+          )
+        }
+    } else {
+        quote! {
+          ::grui::prelude::for_each(
+              #each_expr,
+              #key_expr,
+              #children_expr,
+          )
+        }
     };
 
     Ok(output)
@@ -596,9 +657,9 @@ mod tests {
         let output = transform(input).expect("transform ok");
         let expected = quote! {
             ::grui::prelude::for_each(
-                (| | (1..=5))(),
+                | | (1..=5),
                 |i| *i,
-                |(i)| { ::grui::prelude::label().prop("text", format!("Item {}", i)).build() }
+                |i| { ::grui::prelude::label().prop("text", format!("Item {}", i)).build() },
             )
         };
         assert_eq!(pretty(output), pretty(expected));

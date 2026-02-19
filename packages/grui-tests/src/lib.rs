@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use godot::prelude::*;
-    use grui::{prelude::*, renderer::TestRenderer};
+    use grui::{prelude::*, TestRenderer};
     use pretty_assertions::assert_eq;
 
     #[component]

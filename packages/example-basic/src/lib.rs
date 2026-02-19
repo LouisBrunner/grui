@@ -39,15 +39,35 @@ where
               }).collect::<Vec<_>>()
             }
             // dynamic iteration
-            // <For each=|| (0..count.get()) key=|i| *i let(i)>
-            //     <label text=format!("Tick {}", i) />
-            // </For>
+            <hboxcontainer>
+              <vboxcontainer>
+                <For each=move || 0..count.get() key=|i| *i let(i)>
+                    <label text=format!("Tick 1 {}", i) />
+                </For>
+              </vboxcontainer>
+              <vboxcontainer>
+                <For each=move || 0..count.get() key=|i| *i children=|i| {
+                  control! { <label text=format!("Tick 2 {}", i) /> }
+                } />
+              </vboxcontainer>
+              <vboxcontainer>
+                <ForEnumerate each=move || 0..count.get() key=|i| *i let(idx, i)>
+                    <label text=format!("Tick 3 {} ({})", i, idx.get()) />
+                </ForEnumerate>
+              </vboxcontainer>
+              <vboxcontainer>
+                <ForEnumerate each=move || 0..count.get() key=|i| *i children=|idx, i| {
+                  control! { <label text=format!("Tick 4 {} ({})", i, idx.get()) /> }
+                } />
+              </vboxcontainer>
+            </hboxcontainer>
             // event handling
             <button on:pressed=SignalCallable::new(move |_| {
                 godot_print!("Button pressed! (count: {})", count.get());
                 set_count.update(|c| *c += 1);
               })
               text=format!("Clicks: {}", count.get()) />
+              // text=|| format!("Clicks: {}", count.get()) />
             // custom component usage
             <MenuButton label="Resume" on_pressed=resume />
             <MenuButton label="Quit" on_pressed=quit />

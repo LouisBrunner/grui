@@ -1,7 +1,7 @@
 use crate::{
+    core::renderer::Render,
     godot::ty::GDType,
     prelude::visitors::{ChildrenGatherer, PropsGatherer, SignalsGatherer},
-    renderer::Render,
 };
 use frunk::hlist::HList;
 use godot::{classes::Control, obj::Gd};

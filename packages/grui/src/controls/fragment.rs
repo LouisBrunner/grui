@@ -1,6 +1,6 @@
 use crate::{
+    core::renderer::Render,
     prelude::{visitors::ChildrenGatherer, IntoRender},
-    renderer::Render,
 };
 use frunk::{hlist::HList, HCons, HNil};
 use godot::{classes::Control, obj::Gd};

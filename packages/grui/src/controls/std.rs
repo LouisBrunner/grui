@@ -1,4 +1,4 @@
-use crate::{controls::IntoControl, renderer::Render};
+use crate::{controls::IntoControl, core::renderer::Render};
 use godot::{classes::Control, obj::Gd};
 
 impl<T: Render> Render for Vec<T> {

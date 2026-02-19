@@ -1,4 +1,4 @@
-use crate::{prelude::SignalCallable, renderer::Render};
+use crate::{core::renderer::Render, prelude::SignalCallable};
 use frunk::{HCons, HNil};
 use godot::{
     builtin::{Callable, Variant},

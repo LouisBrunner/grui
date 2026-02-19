@@ -59,7 +59,19 @@ fn PauseMenu(title: String) -> impl IntoControl {
                 godot_print!("Button pressed! (count: {})", count.get());
                 set_count.update(|c| *c += 1);
               })
-              text=format!("Clicks: {}", count.get()) />
+              text=|| format!("Clicks: {}", count.get()) />
+            // conditions
+            {move || if count.get() > 3 {
+              control!{ <label text="STOP!" /> }
+            } else {
+              control!{ <label text="Keep pressing!" /> }
+            }}
+            <Show
+              when=|| count.get() > 3
+              fallback=|| control!{ <label text="Keep pressing!" /> }
+            >
+                <label text="STOP!" />
+            </Show>
             // custom component usage
             <MenuButton label="Resume" on_pressed=resume />
             <MenuButton label="Quit" on_pressed=quit />
@@ -78,24 +90,18 @@ pub struct HUDRoot {
 
 ### Reactivity
 
-- `signal(initial)` returns `(ReadSignal<T>, WriteSignal<T>)` – call `set()` or `update()` to mutate, which marks the UI dirty.
+- `signal(initial)` returns `(ReadSignal<T>, WriteSignal<T>)`, call `set()` or `update()` to mutate, which marks the UI dirty.
 - `Effect::new(|| ...)` runs immediately and after each render triggered by any state write.
-- `for_each(iter, key, |item| ...)` builds a fragment from an iterator (simple `<For/>` substitute).
+- `<For/>` and `<ForEnumerate />` for dynamic amount of entries.
 - create a Godot class with `#[class(root=ComponentType)]`. The renderer mounts once and re-renders when states change.
 
 # Missing
 
-- [ ] Reactive properties
-- [ ] Conditions
-- [ ] `for_each` + `<ForEnumerate />`
 - [ ] `<Show />`
-- [ ] `<ErrorBoundary/>`
-- [ ] `Children` / `ChildrenFn` / `ChildrenFragment`
-- [ ] Better form integration (bind?)
+- [ ] Reactive properties
+- [ ] Conditions / direct closures
+- [ ] Re run `<For />` / `<Show />` + caching
 - [ ] Themes & Override
 - [ ] Statically typed props/signals
-- [ ] Memo?
-- [ ] Context?
 - [ ] Preview in Godot Editor
-- [ ] Optional props
 - [ ] Better fallback macros for invalid syntax

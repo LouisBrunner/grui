@@ -1,8 +1,8 @@
 use crate::{
     controls::{Builtin, IntoControl},
+    core::renderer::IntoRender,
     godot::ty::GDType,
     prelude::visitors::{ChildrenGatherer, PropsGatherer, SignalsGatherer},
-    renderer::IntoRender,
 };
 use frunk::{hlist::HList, HCons, HNil};
 use godot::meta::ToGodot;
