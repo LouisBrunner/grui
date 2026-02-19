@@ -1,5 +1,7 @@
-use crate::controls::IntoControl;
+use crate::{controls::IntoControl, prelude::GodotExecutor};
+use any_spawner::Executor;
 use godot::{classes::Control, obj::Gd};
+use reactive_graph::owner::Owner;
 
 pub trait IntoRender {
     type Output;
@@ -21,7 +23,7 @@ pub trait Render: Sized {
 }
 
 pub struct Renderer {
-    parent: Gd<Control>,
+    #[allow(dead_code)] // FIXME: remove later
     root: Vec<Gd<Control>>,
 }
 
@@ -32,14 +34,18 @@ impl Renderer {
         T: IntoControl,
         T: Render,
     {
-        let controls = component(props).into_control().to_controls();
-        for control in &controls {
-            parent.add_child(control);
-        }
-        Renderer {
-            parent,
-            root: controls,
-        }
+        _ = Executor::init_custom_executor(GodotExecutor {});
+
+        let owner = Owner::new();
+        let mounted = owner.with(move || {
+            let controls = component(props).into_control().to_controls();
+            for control in &controls {
+                parent.add_child(control);
+            }
+            controls
+        });
+
+        Renderer { root: mounted }
     }
 }
 

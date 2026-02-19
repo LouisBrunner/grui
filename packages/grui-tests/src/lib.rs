@@ -25,7 +25,7 @@ mod tests {
     }
 
     #[component]
-    fn Builtins(resume: SignalCallback) -> impl IntoControl {
+    fn Builtins(resume: SignalCallable) -> impl IntoControl {
         control! {
             <>
                 <panel />
@@ -43,7 +43,7 @@ mod tests {
     #[test]
     fn with_builtins() {
         let props = BuiltinsProps {
-            resume: SignalCallback::new(|_| {
+            resume: SignalCallable::new(|_| {
                 godot_print!("Resumed!");
             }),
         };

@@ -3,7 +3,7 @@ use grui::prelude::*;
 use std::fmt::{Debug, Display};
 
 #[component]
-fn MenuButton<S>(label: S, on_pressed: SignalCallback) -> impl IntoControl
+fn MenuButton<S>(label: S, on_pressed: SignalCallable) -> impl IntoControl
 where
     S: Into<String> + ToGodot + Debug,
 {
@@ -15,17 +15,17 @@ fn Menu<S>(title: S) -> impl IntoControl
 where
     S: Into<String> + ToGodot + Debug + Display,
 {
-    // let (count, set_count) = state(0);
+    let (count, set_count) = signal(0);
 
-    // Effect::new(|| {
-    //     godot_print!("Effect: count is {}", count.get());
-    // });
+    Effect::new(move || {
+        godot_print!("Effect: count is {}", count.get());
+    });
 
-    let resume = SignalCallback::new(|_| {
+    let resume = SignalCallable::new(|_| {
         godot_print!("Resuming game!");
     });
 
-    let quit = SignalCallback::new(|_| {
+    let quit = SignalCallable::new(|_| {
         godot_print!("Quitting game!");
     });
 
@@ -43,8 +43,8 @@ where
             //     <label text=format!("Tick {}", i) />
             // </For>
             // event handling
-            // <button on:pressed=Callable::from_fn(move || { set_count.update(|c| *c += 1); })
-            //   text=format!("Clicks: {}", count.get()) />
+            <button on:pressed=SignalCallable::new(move |_| { set_count.update(|c| *c += 1); })
+              text=format!("Clicks: {}", count.get()) />
             // custom component usage
             <MenuButton label="Resume" on_pressed=resume />
             <MenuButton label="Quit" on_pressed=quit />
@@ -54,7 +54,7 @@ where
 
 #[component]
 fn Basic() -> impl IntoControl {
-    let handler = SignalCallback::new(|_| {
+    let handler = SignalCallable::new(|_| {
         godot_print!("Resumed!");
     });
     control! {

@@ -1,6 +1,7 @@
 mod builtin;
 mod empty;
 mod fragment;
+mod functions;
 mod std;
 pub mod visitors;
 
@@ -8,6 +9,7 @@ use crate::renderer::Render;
 pub(crate) use builtin::Builtin;
 pub use empty::empty;
 pub use fragment::fragment;
+pub use functions::*;
 use godot::{classes::Control, obj::Gd};
 pub use std::CollectControl;
 pub use visitors::*;

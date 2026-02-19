@@ -9,5 +9,5 @@ edition = "2021"
 [workspace.dependencies]
 grui = { path = "packages/grui", version = "0.0.1" }
 grui-macros = { path = "packages/grui-macros", version = "0.0.1" }
-godot = "0.2.3"
+godot = "0.4.5"
 pretty_assertions = "1.4.1"

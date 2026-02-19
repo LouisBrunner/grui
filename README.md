@@ -3,7 +3,7 @@
 `grui` lets you build declarative, reactive user interfaces for Godot in Rust.
 Inspired by React and Leptos, it combines a compact HTML-like syntax with the Godot Rust bindings to render control-based UIs.
 
-The API and DSL are inspired by [Leptos](https://www.leptos.dev/). You get states (equivalent to signals), effects and a `<For/>` element for basic reactivity.
+The API and DSL are inspired by [Leptos](https://www.leptos.dev/). It uses the same library for reactivity and thus provides similar features. This means you get signals (not to be confused with the Godot Signals), effects and a `<For/>` element for example.
 
 ## Crates
 
@@ -27,17 +27,17 @@ fn MenuButton(label: String, on_pressed: Callable) -> impl IntoControl {
 // a top-level component is the same as any other
 #[component]
 fn PauseMenu(title: String) -> impl IntoControl {
-    let (count, set_count) = state(0);
+    let (count, set_count) = signal(0);
 
-    Effect::new(|| {
+    Effect::new(move || {
         godot_print!("Effect: count is {}", count.get());
     });
 
-    let resume = SignalCallback::new(|_| {
+    let resume = SignalCallable::new(|_| {
         godot_print!("Resuming game!");
     });
 
-    let quit = SignalCallback::new(|_| {
+    let quit = SignalCallable::new(|_| {
         godot_print!("Quitting game!");
     });
 
@@ -55,7 +55,7 @@ fn PauseMenu(title: String) -> impl IntoControl {
                 <label text=format!("Tick {}", i) />
             </For>
             // event handling
-            <button on:pressed=Callable::from_fn(move || { set_count.update(|c| *c += 1); })
+            <button on:pressed=SignalCallable::new(move |_| { set_count.update(|c| *c += 1); })
               text=format!("Clicks: {}", count.get()) />
             // custom component usage
             <MenuButton label="Resume" on_pressed=resume />
@@ -75,7 +75,7 @@ pub struct HUDRoot {
 
 ### Reactivity
 
-- `state(initial)` returns `(ReadState<T>, WriteState<T>)` – call `set()` or `update()` to mutate, which marks the UI dirty.
+- `signal(initial)` returns `(ReadSignal<T>, WriteSignal<T>)` – call `set()` or `update()` to mutate, which marks the UI dirty.
 - `Effect::new(|| ...)` runs immediately and after each render triggered by any state write.
 - `for_each(iter, key, |item| ...)` builds a fragment from an iterator (simple `<For/>` substitute).
 - create a Godot class with `#[class(root=ComponentType)]`. The renderer mounts once and re-renders when states change.
