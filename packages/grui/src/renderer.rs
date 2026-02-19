@@ -1,6 +1,6 @@
 use crate::{controls::IntoControl, prelude::GodotExecutor};
 use any_spawner::Executor;
-use godot::{classes::Control, obj::Gd};
+use godot::{classes::Control, meta::AsArg, obj::Gd};
 use reactive_graph::owner::Owner;
 
 pub trait IntoRender {
@@ -25,16 +25,21 @@ pub trait Render: Sized {
 pub struct Renderer {
     #[allow(dead_code)] // FIXME: remove later
     root: Vec<Gd<Control>>,
+    #[allow(dead_code)] // FIXME: remove later
+    owner: Owner,
 }
 
 impl Renderer {
-    pub fn mount<P, C, T>(mut parent: Gd<Control>, component: C, props: P) -> Self
+    pub fn mount<N, P, C, T>(parent: N, component: C, props: P) -> Self
     where
+        N: AsArg<Gd<Control>>,
         C: FnOnce(P) -> T,
         T: IntoControl,
         T: Render,
     {
-        _ = Executor::init_custom_executor(GodotExecutor {});
+        let _ = Executor::init_custom_executor(GodotExecutor {});
+
+        let mut parent = parent.into_arg().to_owned();
 
         let owner = Owner::new();
         let mounted = owner.with(move || {
@@ -45,7 +50,10 @@ impl Renderer {
             controls
         });
 
-        Renderer { root: mounted }
+        Renderer {
+            root: mounted,
+            owner,
+        }
     }
 }
 

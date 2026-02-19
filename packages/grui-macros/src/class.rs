@@ -69,12 +69,6 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
     let base = args.base;
     let base_interface = format_ident!("I{}", base);
     let root_props = format_ident!("{}Props", root);
-    let need_upcast = base != "Control";
-    let get_base = if need_upcast {
-        quote! { self.base.to_gd().upcast() }
-    } else {
-        quote! { self.base.to_gd() }
-    };
 
     let fields = match item.fields {
         syn::Fields::Named(fields_named) => Ok(fields_named.named),
@@ -107,7 +101,7 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
             let props = #root_props {
               #fields_comp
             };
-            self.grui_renderer = Some(::grui::prelude::Renderer::mount(#get_base, #root, props));
+            self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), #root, props));
           }
       }
     };
@@ -155,7 +149,7 @@ mod tests {
                   field: self.field.clone(),
                   abc: self.abc.clone(),
                 };
-                self.grui_renderer = Some(::grui::prelude::Renderer::mount(self.base.to_gd(), App, props));
+                self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), App, props));
               }
           }
         };
@@ -184,7 +178,7 @@ mod tests {
             impl IControl for Empty {
                 fn ready(&mut self) {
                   let props = AppProps {  };
-                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(self.base.to_gd(), App, props));
+                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), App, props));
                 }
             }
         };
@@ -217,7 +211,7 @@ mod tests {
                     a: self.a.clone(),
                     b: self.b.clone(),
                   };
-                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(self.base.to_gd().upcast(), MyComp, props));
+                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), MyComp, props));
                 }
             }
         };

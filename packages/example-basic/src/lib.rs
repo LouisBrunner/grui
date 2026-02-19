@@ -43,7 +43,10 @@ where
             //     <label text=format!("Tick {}", i) />
             // </For>
             // event handling
-            <button on:pressed=SignalCallable::new(move |_| { set_count.update(|c| *c += 1); })
+            <button on:pressed=SignalCallable::new(move |_| {
+                godot_print!("Button pressed! (count: {})", count.get());
+                set_count.update(|c| *c += 1);
+              })
               text=format!("Clicks: {}", count.get()) />
             // custom component usage
             <MenuButton label="Resume" on_pressed=resume />
