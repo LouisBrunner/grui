@@ -13,7 +13,7 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
     function.sig.ident = make_snake_case(&function.sig.ident);
     let props_ident = format_ident!("{}Props", function.sig.ident);
 
-    let (impl_generics, ty_generics, where_clause) = function.sig.generics.split_for_impl();
+    let (_, ty_generics, where_clause) = function.sig.generics.split_for_impl();
 
     let (field_idents, field_types) = extract_fields(&function.sig)?;
     let has_fields = !field_idents.is_empty();
@@ -44,8 +44,8 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
     function.attrs.clear();
 
     let props = quote! {
-        #[derive(Clone, Debug)]
-        #vis struct #props_ident #impl_generics #where_clause {
+        #[derive(Debug)]
+        #vis struct #props_ident #ty_generics #where_clause {
             #(pub #field_idents: #field_types,)*
         }
     };
@@ -119,7 +119,7 @@ mod tests {
         };
 
         let expected = quote! {
-            #[derive(Clone, Debug)]
+            #[derive(Debug)]
             pub struct ButtonProps {
                 pub label: String,
                 pub disabled: bool,
@@ -152,7 +152,7 @@ mod tests {
         };
 
         let expected = quote! {
-            #[derive(Clone, Debug)]
+            #[derive(Debug)]
             struct MenuButtonProps {
                 pub label: String,
                 pub on_pressed: Callable,
@@ -183,7 +183,7 @@ mod tests {
         };
 
         let expected = quote! {
-            #[derive(Clone, Debug)]
+            #[derive(Debug)]
             struct SimpleButtonProps { }
 
             #[allow(non_snake_case)]
@@ -198,12 +198,40 @@ mod tests {
     }
 
     #[test]
+    pub fn component_with_generics() {
+        let args = r#""#.parse().expect("args to be parsable");
+
+        let input = quote! {
+            fn SimpleButton<S>(label: S) -> impl IntoControl where S: Into<String> {
+                control! {<button text=label />}
+            }
+        };
+
+        let expected = quote! {
+            #[derive(Debug)]
+            struct SimpleButtonProps<S> where S: Into<String> {
+              pub label: S,
+            }
+
+            #[allow(non_snake_case)]
+            fn SimpleButton<S>(props: SimpleButtonProps<S>) -> impl IntoControl where S: Into<String> {
+                let SimpleButtonProps { label } = props;
+                control! {<button text=label />}
+            }
+        };
+
+        let output = transform(args, input).expect("transform to succeed");
+
+        assert_eq!(pretty(output), pretty(expected));
+    }
+
+    #[test]
     fn captures_var_names() {
         let args = r#""#.parse().unwrap();
         let input = quote! { fn foo(bar: i32, children: String) -> impl IntoControl { control! {<label max_lines_visible=bar text=children />} } };
         let output = transform(args, input).expect("ok");
         let expected = quote! {
-            #[derive(Clone, Debug)]
+            #[derive(Debug)]
             struct FooProps {
                 pub bar: i32,
                 pub children: String,

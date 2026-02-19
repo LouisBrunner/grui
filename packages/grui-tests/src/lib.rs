@@ -25,10 +25,7 @@ mod tests {
     }
 
     #[component]
-    fn Builtins<F>(resume: F) -> impl IntoControl
-    where
-        F: CompatibleFn,
-    {
+    fn Builtins(resume: SignalCallback) -> impl IntoControl {
         control! {
             <>
                 <panel />
@@ -46,10 +43,9 @@ mod tests {
     #[test]
     fn with_builtins() {
         let props = BuiltinsProps {
-            resume: move |_| {
+            resume: SignalCallback::new(|_| {
                 godot_print!("Resumed!");
-                Ok(Variant::nil())
-            },
+            }),
         };
         let renderer = TestRenderer::mount(Builtins, props);
         assert_eq!(

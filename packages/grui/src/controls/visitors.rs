@@ -6,7 +6,7 @@ use godot::{
     meta::ToGodot,
     obj::Gd,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
 
 pub trait ChildrenGatherer {
     fn gather_controls(self) -> Vec<Gd<Control>>;
@@ -89,21 +89,46 @@ impl SignalsGatherer for HNil {
     }
 }
 
-pub trait CompatibleFn: 'static + FnMut(&[&Variant]) -> Result<Variant, ()> {}
+pub trait CompatibleFn: 'static + FnMut(&[&Variant]) -> () {}
 
-impl<T> CompatibleFn for T where T: 'static + FnMut(&[&Variant]) -> Result<Variant, ()> {}
+impl<T> CompatibleFn for T where T: 'static + FnMut(&[&Variant]) -> () {}
 
-impl<V, Tail> SignalsGatherer for HCons<(String, V), Tail>
+pub struct SignalCallback {
+    func: Box<dyn CompatibleFn>,
+}
+
+impl SignalCallback {
+    pub fn new<F>(func: F) -> Self
+    where
+        F: CompatibleFn,
+    {
+        return Self {
+            func: Box::new(func),
+        };
+    }
+
+    pub fn to_godot(self, label: &str) -> Callable {
+        let mut func = self.func;
+        Callable::from_local_fn(&format!("{}_handler", label), move |args| {
+            (func)(args);
+            Ok(Variant::nil())
+        })
+    }
+}
+
+impl Debug for SignalCallback {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SignalCallback")
+    }
+}
+
+impl<Tail> SignalsGatherer for HCons<(String, SignalCallback), Tail>
 where
-    V: CompatibleFn,
     Tail: SignalsGatherer,
 {
     fn gather_signals(self) -> HashMap<String, Callable> {
         let mut map = self.tail.gather_signals();
-        map.insert(
-            self.head.0.to_string(),
-            Callable::from_local_fn(&format!("{}_handler", self.head.0), self.head.1),
-        );
+        map.insert(self.head.0.to_string(), self.head.1.to_godot(&self.head.0));
         map
     }
 

@@ -30,15 +30,15 @@ fn PauseMenu(title: String) -> impl IntoControl {
     let (count, set_count) = state(0);
 
     Effect::new(|| {
-        godot::godot_print!("Effect: count is {}", count.get());
+        godot_print!("Effect: count is {}", count.get());
     });
 
-    let resume = Callable::from_fn(|| {
-        godot::godot_print!("Resuming game!");
+    let resume = SignalCallback::new(|_| {
+        godot_print!("Resuming game!");
     });
 
-    let quit = Callable::from_fn(|| {
-        godot::godot_print!("Quitting game!");
+    let quit = SignalCallback::new(|_| {
+        godot_print!("Quitting game!");
     });
 
     control! {
@@ -47,8 +47,8 @@ fn PauseMenu(title: String) -> impl IntoControl {
             // static iteration
             {
               (1..=3).map(|i| {
-                  control! { <label text={format!("{} {}", title, i)} /> }
-              })
+                  control! { <label text=format!("{} {}", title, i) /> }
+              }).collect::<Vec<_>>()
             }
             // dynamic iteration
             <For each=|| (0..count.get()) key=|i| *i let(i)>
@@ -77,12 +77,12 @@ pub struct HUDRoot {
 
 - `state(initial)` returns `(ReadState<T>, WriteState<T>)` – call `set()` or `update()` to mutate, which marks the UI dirty.
 - `Effect::new(|| ...)` runs immediately and after each render triggered by any state write.
-- `for_each(iter, key, |item| ...)` builds a fragment from an iterator (simple `<For/>` substitute). 
+- `for_each(iter, key, |item| ...)` builds a fragment from an iterator (simple `<For/>` substitute).
 - create a Godot class with `#[class(root=ComponentType)]`. The renderer mounts once and re-renders when states change.
 
 # Missing
 
-- [ ] Support all classes
+- [x] Support all classes
 - [ ] Conditions
 - [ ] `state`
 - [ ] `Effect`
