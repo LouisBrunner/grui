@@ -1,3 +1,4 @@
+use crate::{core::renderer::Render, prelude::IntoControl};
 use godot::builtin::{Callable, Variant};
 use std::fmt::Debug;
 
@@ -30,5 +31,19 @@ impl SignalCallable {
 impl Debug for SignalCallable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "SignalCallable")
+    }
+}
+
+impl<T, C> Render for T
+where
+    T: FnOnce() -> C,
+    C: IntoControl,
+{
+    fn to_controls(self) -> Vec<godot::prelude::Gd<godot::classes::Control>> {
+        (self)().to_controls()
+    }
+
+    fn to_json(self) -> String {
+        (self)().to_json()
     }
 }

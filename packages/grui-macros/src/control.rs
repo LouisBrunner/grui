@@ -79,8 +79,7 @@ fn add_children(mut builder: TokenStream, children: Vec<TokenStream>) -> TokenSt
 fn transform_element(element: &HtmlElement) -> Result<TokenStream> {
     if let Some(tag) = is_special_tag(element.name()) {
         match tag {
-            SpecialTag::For => transform_for(tag, element),
-            SpecialTag::ForEnumerate => transform_for(tag, element),
+            SpecialTag::For | SpecialTag::ForEnumerate => transform_for(tag, element),
             SpecialTag::Show => transform_show(element),
         }
     } else if is_component_tag(element.name())? {
@@ -103,22 +102,25 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
     let mut fields = Vec::new();
 
     for attribute in element.open_tag.attributes.iter() {
-        if let NodeAttribute::Attribute(attr) = attribute {
-            let key = attribute_name(attr)?;
-            if key == "children" {
+        match attribute {
+            NodeAttribute::Attribute(attr) => {
+                let key = attribute_name(attr)?;
+                if key == "children" {
+                    return Err(Error::new(
+                        attr.span(),
+                        "children must be provided as element contents, not as an attribute",
+                    ));
+                }
+                let field_ident = attribute_to_ident(&key);
+                let value = attribute_value(attr, true, false)?;
+                fields.push(quote! { #field_ident: #value });
+            }
+            _ => {
                 return Err(Error::new(
-                    attr.span(),
-                    "children must be provided as element contents, not as an attribute",
+                    attribute.span(),
+                    "attribute blocks are not supported on components",
                 ));
             }
-            let field_ident = attribute_to_ident(&key);
-            let value = attribute_value(attr, true)?;
-            fields.push(quote! { #field_ident: #value });
-        } else {
-            return Err(Error::new(
-                attribute.span(),
-                "attribute blocks are not supported on components",
-            ));
         }
     }
 
@@ -144,11 +146,11 @@ fn apply_attributes(mut builder: TokenStream, element: &HtmlElement) -> Result<T
             NodeAttribute::Attribute(attr) => {
                 let key = attribute_name(attr)?;
                 if let Some(event) = key.strip_prefix("on:") {
-                    let handler = attribute_value(attr, false)?;
+                    let handler = attribute_value(attr, false, false)?;
                     let event_lit = LitStr::new(event, attr.key.span());
                     builder = quote! { #builder.on(#event_lit, #handler) };
                 } else {
-                    let value = attribute_value(attr, true)?;
+                    let value = attribute_value(attr, true, true)?;
                     let key_lit = LitStr::new(&key, attr.key.span());
                     builder = quote! { #builder.prop(#key_lit, #value) };
                 }
@@ -216,15 +218,15 @@ fn transform_for(tag: SpecialTag, element: &HtmlElement) -> Result<TokenStream> 
                 let key = attribute_name(attr)?;
                 match key.as_str() {
                     "each" => {
-                        let expr = attribute_value(attr, false)?;
+                        let expr = attribute_value(attr, false, false)?;
                         each_expr = Some(expr);
                     }
                     "key" => {
-                        let expr = attribute_value(attr, false)?;
+                        let expr = attribute_value(attr, false, false)?;
                         key_expr = Some(expr);
                     }
                     "children" => {
-                        let expr = attribute_value(attr, false)?;
+                        let expr = attribute_value(attr, false, false)?;
                         children_expr = Some(expr);
                     }
                     "let" => match &attr.possible_value {
@@ -333,11 +335,11 @@ fn transform_show(element: &HtmlElement) -> Result<TokenStream> {
                 let key = attribute_name(attr)?;
                 match key.as_str() {
                     "when" => {
-                        let expr = attribute_value(attr, false)?;
+                        let expr = attribute_value(attr, false, false)?;
                         when_expr = Some(expr);
                     }
                     "fallback" => {
-                        let expr = attribute_value(attr, false)?;
+                        let expr = attribute_value(attr, false, false)?;
                         fallback_expr = Some(expr);
                     }
                     other => {
@@ -524,10 +526,23 @@ fn attribute_name(attr: &KeyedAttribute) -> Result<String> {
     Ok(attr.key.to_string())
 }
 
-fn attribute_value(attr: &KeyedAttribute, allow_missing: bool) -> Result<TokenStream> {
+fn attribute_value(
+    attr: &KeyedAttribute,
+    allow_missing: bool,
+    wrap_fn: bool,
+) -> Result<TokenStream> {
     match &attr.possible_value {
         KeyedAttributeValue::Value(value_expr) => match &value_expr.value {
-            KVAttributeValue::Expr(expr) => Ok(quote! { #expr }),
+            KVAttributeValue::Expr(expr) => match expr {
+                syn::Expr::Closure(closure) => Ok(quote! { #closure }),
+                _ => {
+                    if wrap_fn {
+                        Ok(quote! { || #expr })
+                    } else {
+                        Ok(quote! { #expr })
+                    }
+                }
+            },
             KVAttributeValue::InvalidBraced(_) => {
                 Err(Error::new(attr.span(), "invalid attribute expression"))
             }
@@ -585,11 +600,11 @@ mod tests {
             ::grui::prelude::fragment()
               .child(::grui::prelude::panel().build())
               .child(::grui::prelude::v_box_container()
-                .child(::grui::prelude::button().on("click", resume).prop("text", "Resume").build())
-                .child(::grui::prelude::button().prop("text", "Save").build())
+                .child(::grui::prelude::button().on("click", resume).prop("text", || "Resume").build())
+                .child(::grui::prelude::button().prop("text", || "Save").build())
                 .child(
                   ::grui::prelude::fragment()
-                    .child(::grui::prelude::button().prop("text", "Load").build())
+                    .child(::grui::prelude::button().prop("text", || "Load").build())
                 )
                 .build()
               )
@@ -606,7 +621,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::button().prop("text", "Click me").build()
+            ::grui::prelude::button().prop("text", || "Click me").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -620,7 +635,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::button().on("pressed", on_pressed).prop("text", "Save").build()
+            ::grui::prelude::button().on("pressed", on_pressed).prop("text", || "Save").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -636,7 +651,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::button().on("pressed", { Callable::from_fn(| | { counter.mutate(|c| *c += 1); }) }).prop("text", "Save").build()
+            ::grui::prelude::button().on("pressed", { Callable::from_fn(| | { counter.mutate(|c| *c += 1); }) }).prop("text", || "Save").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -650,7 +665,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::label().prop("text", format!("{} {}", title, i)).build()
+            ::grui::prelude::label().prop("text", || format!("{} {}", title, i)).build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -686,9 +701,9 @@ mod tests {
         let output = transform(input).expect("transform ok");
         let expected = quote! {
             ::grui::prelude::v_box_container()
-              .child(::grui::prelude::button().prop("text", "One").build())
-              .child(::grui::prelude::button().prop("text", "Two").build())
-              .child(::grui::prelude::button().prop("text", "Three").build())
+              .child(::grui::prelude::button().prop("text", || "One").build())
+              .child(::grui::prelude::button().prop("text", || "Two").build())
+              .child(::grui::prelude::button().prop("text", || "Three").build())
               .build()
         };
 
@@ -731,7 +746,7 @@ mod tests {
             ::grui::prelude::for_each(
                 | | (1..=5),
                 |i| *i,
-                |i| { ::grui::prelude::label().prop("text", format!("Item {}", i)).build() },
+                |i| { ::grui::prelude::label().prop("text", || format!("Item {}", i)).build() },
             )
         };
         assert_eq!(pretty(output), pretty(expected));
@@ -784,7 +799,7 @@ mod tests {
         let output = transform(input).expect("transform ok");
         let expected = quote! {
             MyComp(MyCompProps {
-                children: ::grui::prelude::button().prop("text", "Click me").build(),
+                children: ::grui::prelude::button().prop("text", || "Click me").build(),
             })
         };
 

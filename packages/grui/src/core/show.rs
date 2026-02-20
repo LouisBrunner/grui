@@ -10,7 +10,7 @@ where
     let memoized_when = ArcMemo::new(move |_| when());
     let children = children.into_control();
 
-    match memoized_when.get() {
+    move || match memoized_when.get() {
         true => children.into_any(),
         false => fallback().into_any(),
     }

@@ -42,18 +42,19 @@ impl<Pp, Sg, Ch> GDClass<Pp, Sg, Ch>
 where
     Pp: HList,
 {
-    pub fn prop<Value>(
+    pub fn prop<FValue, Value>(
         self,
         name: &str,
-        value: Value,
+        value: FValue,
     ) -> GDClass<HCons<(String, Value), Pp>, Sg, Ch>
     where
+        FValue: FnOnce() -> Value,
         Value: ToGodot,
     {
         GDClass {
             ty: self.ty,
             props: HCons {
-                head: (name.to_string(), value),
+                head: (name.to_string(), value()),
                 tail: self.props,
             },
             signals: self.signals,

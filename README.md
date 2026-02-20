@@ -62,13 +62,13 @@ fn PauseMenu(title: String) -> impl IntoControl {
               text=|| format!("Clicks: {}", count.get()) />
             // conditions
             {move || if count.get() > 3 {
-              control!{ <label text="STOP!" /> }
+              control!{ <label text="STOP!" /> }.into_any()
             } else {
-              control!{ <label text="Keep pressing!" /> }
+              control!{ <button text="Keep pressing!" /> }.into_any()
             }}
             <Show
               when=|| {count.get() > 3}
-              fallback=|| control!{ <label text="Keep pressing!" /> }
+              fallback=|| control!{ <button text="Keep pressing!" /> }
             >
                 <label text="STOP!" />
             </Show>
@@ -92,13 +92,14 @@ pub struct HUDRoot {
 
 - `signal(initial)` returns `(ReadSignal<T>, WriteSignal<T>)`, call `set()` or `update()` to mutate, which marks the UI dirty.
 - `Effect::new(|| ...)` runs immediately and after each render triggered by any state write.
+- All the memo functions provided by `reactive_graph` (see Leptos' documentation for more details).
 - `<For/>` and `<ForEnumerate />` for dynamic amount of entries.
-- create a Godot class with `#[class(root=ComponentType)]`. The renderer mounts once and re-renders when states change.
+- `<Show />` for efficient conditions.
 
 # Missing
 
-- [ ] Reactive properties / direct closures
-- [ ] Re run `<For />` / `<Show />` + caching
+- [ ] Reactive properties
+- [ ] Caching for `<For />` / `<ForEnumerate />`
 - [ ] Themes & Override
 - [ ] Statically typed props/signals
 - [ ] Preview in Godot Editor

@@ -66,17 +66,16 @@ where
                 godot_print!("Button pressed! (count: {})", count.get());
                 set_count.update(|c| *c += 1);
               })
-              text=format!("Clicks: {}", count.get()) />
-              // text=|| format!("Clicks: {}", count.get()) />
+              text=|| format!("Clicks: {}", count.get()) />
             // conditions
-            // {move || if count.get() > 3 {
-            //   control!{ <label text="STOP!" /> }.into_any()
-            // } else {
-            //   control!{ <button text="Keep pressing!" /> }.into_any()
-            // }}
+            {move || if count.get() > 3 {
+              control!{ <label text="STOP!" /> }.into_any()
+            } else {
+              control!{ <button text="Keep pressing!" /> }.into_any()
+            }}
             <Show
               when=move || {count.get() > 3}
-              fallback=|| control!{ <label text="Keep pressing!" /> }
+              fallback=|| control!{ <button text="Keep pressing!" /> }
             >
                 <label text="STOP!" />
             </Show>

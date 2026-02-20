@@ -25,7 +25,7 @@ where
         let control = owner.with(|| children(child));
         (|_| {}, OwnedControl::new_with_owner(control, owner))
     };
-    for_control(each(), key.clone(), children.clone())
+    move || for_control(each(), key.clone(), children.clone())
 }
 
 pub fn for_each_enumerate<EF, E, KF, K, CF, C, T>(
@@ -52,7 +52,7 @@ where
             OwnedControl::new_with_owner(control, owner),
         )
     };
-    for_control(each(), key.clone(), children.clone())
+    move || for_control(each(), key.clone(), children.clone())
 }
 
 struct ForControl<E, KF, K, CF, C, CIF, T>
