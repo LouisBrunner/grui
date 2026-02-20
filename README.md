@@ -67,7 +67,7 @@ fn PauseMenu(title: String) -> impl IntoControl {
               control!{ <label text="Keep pressing!" /> }
             }}
             <Show
-              when=|| count.get() > 3
+              when=|| {count.get() > 3}
               fallback=|| control!{ <label text="Keep pressing!" /> }
             >
                 <label text="STOP!" />
@@ -97,9 +97,7 @@ pub struct HUDRoot {
 
 # Missing
 
-- [ ] `<Show />`
-- [ ] Reactive properties
-- [ ] Conditions / direct closures
+- [ ] Reactive properties / direct closures
 - [ ] Re run `<For />` / `<Show />` + caching
 - [ ] Themes & Override
 - [ ] Statically typed props/signals

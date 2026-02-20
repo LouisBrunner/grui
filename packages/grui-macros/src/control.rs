@@ -77,8 +77,12 @@ fn add_children(mut builder: TokenStream, children: Vec<TokenStream>) -> TokenSt
 }
 
 fn transform_element(element: &HtmlElement) -> Result<TokenStream> {
-    if is_for_tag(element.name())? {
-        transform_for(element)
+    if let Some(tag) = is_special_tag(element.name()) {
+        match tag {
+            SpecialTag::For => transform_for(tag, element),
+            SpecialTag::ForEnumerate => transform_for(tag, element),
+            SpecialTag::Show => transform_show(element),
+        }
     } else if is_component_tag(element.name())? {
         transform_component(element)
     } else {
@@ -165,20 +169,31 @@ fn transform_children(nodes: &[HtmlNode]) -> Result<Vec<TokenStream>> {
     nodes.iter().map(transform_node).collect()
 }
 
-const FOR_TAG: &str = "For";
-const FOR_ENUMERATE_TAG: &str = "ForEnumerate";
+#[derive(PartialEq, Eq)]
+enum SpecialTag {
+    For,
+    ForEnumerate,
+    Show,
+}
 
-fn is_for_tag(name: &NodeName) -> Result<bool> {
-    const FOR_TAGS: &[&str] = &[FOR_TAG, FOR_ENUMERATE_TAG];
+fn is_special_tag(name: &NodeName) -> Option<SpecialTag> {
+    const FOR_TAG: &str = "For";
+    const FOR_ENUMERATE_TAG: &str = "ForEnumerate";
+    const SHOW_TAG: &str = "Show";
 
     match name {
-        NodeName::Path(path) => Ok(FOR_TAGS.contains(&path_to_string(path).as_str())),
-        NodeName::Punctuated(_) => Ok(false),
-        NodeName::Block(_) => Ok(false),
+        NodeName::Path(path) => match path_to_string(path).as_str() {
+            FOR_TAG => Some(SpecialTag::For),
+            FOR_ENUMERATE_TAG => Some(SpecialTag::ForEnumerate),
+            SHOW_TAG => Some(SpecialTag::Show),
+            _ => None,
+        },
+        NodeName::Punctuated(_) => None,
+        NodeName::Block(_) => None,
     }
 }
 
-fn transform_for(element: &HtmlElement) -> Result<TokenStream> {
+fn transform_for(tag: SpecialTag, element: &HtmlElement) -> Result<TokenStream> {
     let name = match element.name() {
         NodeName::Path(path) => path_to_string(path),
         _ => {
@@ -188,7 +203,7 @@ fn transform_for(element: &HtmlElement) -> Result<TokenStream> {
             ));
         }
     };
-    let is_enum = name == FOR_ENUMERATE_TAG;
+    let is_enum = tag == SpecialTag::ForEnumerate;
 
     let mut each_expr: Option<TokenStream> = None;
     let mut key_expr: Option<TokenStream> = None;
@@ -232,7 +247,7 @@ fn transform_for(element: &HtmlElement) -> Result<TokenStream> {
                     other => {
                         return Err(Error::new(
                             attr.span(),
-                            format!("unsupported attribute `{}` on <For>", other),
+                            format!("unsupported attribute `{}` on <{}>", other, name),
                         ));
                     }
                 }
@@ -240,7 +255,7 @@ fn transform_for(element: &HtmlElement) -> Result<TokenStream> {
             NodeAttribute::Block(_) => {
                 return Err(Error::new(
                     attribute.span(),
-                    "attribute blocks are not supported on <For>",
+                    format!("attribute blocks are not supported on <{}>", name),
                 ));
             }
         }
@@ -303,6 +318,63 @@ fn transform_for(element: &HtmlElement) -> Result<TokenStream> {
               #children_expr,
           )
         }
+    };
+
+    Ok(output)
+}
+
+fn transform_show(element: &HtmlElement) -> Result<TokenStream> {
+    let mut when_expr: Option<TokenStream> = None;
+    let mut fallback_expr: Option<TokenStream> = None;
+
+    for attribute in element.open_tag.attributes.iter() {
+        match attribute {
+            NodeAttribute::Attribute(attr) => {
+                let key = attribute_name(attr)?;
+                match key.as_str() {
+                    "when" => {
+                        let expr = attribute_value(attr, false)?;
+                        when_expr = Some(expr);
+                    }
+                    "fallback" => {
+                        let expr = attribute_value(attr, false)?;
+                        fallback_expr = Some(expr);
+                    }
+                    other => {
+                        return Err(Error::new(
+                            attr.span(),
+                            format!("unsupported attribute `{}` on <Show>", other),
+                        ));
+                    }
+                }
+            }
+            NodeAttribute::Block(_) => {
+                return Err(Error::new(
+                    attribute.span(),
+                    "attribute blocks are not supported on <For>",
+                ));
+            }
+        }
+    }
+
+    let when_expr = when_expr
+        .ok_or_else(|| Error::new(element.name().span(), "<Show> requires `when` attribute"))?;
+    let fallback_expr = fallback_expr.ok_or_else(|| {
+        Error::new(
+            element.name().span(),
+            "<Show> requires `fallback` attribute",
+        )
+    })?;
+
+    let children = transform_children(&element.children)?;
+    let body_expr = make_children(children).unwrap_or(quote! { ::grui::prelude::empty() });
+
+    let output = quote! {
+      ::grui::prelude::show(
+          #when_expr,
+          #fallback_expr,
+          #body_expr,
+      )
     };
 
     Ok(output)

@@ -68,6 +68,18 @@ where
               })
               text=format!("Clicks: {}", count.get()) />
               // text=|| format!("Clicks: {}", count.get()) />
+            // conditions
+            // {move || if count.get() > 3 {
+            //   control!{ <label text="STOP!" /> }.into_any()
+            // } else {
+            //   control!{ <button text="Keep pressing!" /> }.into_any()
+            // }}
+            <Show
+              when=move || {count.get() > 3}
+              fallback=|| control!{ <label text="Keep pressing!" /> }
+            >
+                <label text="STOP!" />
+            </Show>
             // custom component usage
             <MenuButton label="Resume" on_pressed=resume />
             <MenuButton label="Quit" on_pressed=quit />
