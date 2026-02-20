@@ -29,6 +29,7 @@ fn Menu(title: String) -> impl IntoControl {
             // static iteration
             {
               (1..=3).map(|i| {
+                  let title = title.clone();
                   control! { <label text=format!("{} {}", title, i) /> }
               }).collect::<Vec<_>>()
             }
@@ -74,8 +75,8 @@ fn Menu(title: String) -> impl IntoControl {
                 <label text="STOP!" />
             </Show>
             // custom component usage
-            <MenuButton label="Resume" on_pressed=resume />
-            <MenuButton label="Quit" on_pressed=quit />
+            <MenuButton label="Resume".into() on_pressed=resume />
+            <MenuButton label="Quit".into() on_pressed=quit />
         </vboxcontainer>
     }
 }
@@ -91,7 +92,7 @@ fn Basic() -> impl IntoControl {
             <button on:pressed=handler text="Resume" />
             <button text="Save" />
             <button text="Load" />
-            <Menu title="Pause" />
+            <Menu title="Pause".into() />
         </vboxcontainer>
     }
 }

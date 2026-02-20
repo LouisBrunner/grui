@@ -85,8 +85,8 @@ mod tests {
         control! {
           <panel>
             <>
-              <label text=label />
-              <Simple a=10 b="hello" />
+              <label text=label.clone() />
+              <Simple a=10 b="hello".into() />
             </>
           </panel>
         }

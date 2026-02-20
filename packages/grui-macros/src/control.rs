@@ -113,7 +113,7 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
                 }
                 let field_ident = attribute_to_ident(&key);
                 let value = attribute_value(attr, true, false)?;
-                fields.push(quote! { #field_ident: #value.into() });
+                fields.push(quote! { #field_ident: #value });
             }
             _ => {
                 return Err(Error::new(
