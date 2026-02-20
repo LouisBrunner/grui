@@ -86,7 +86,7 @@ mod tests {
           <panel>
             <>
               <label text=label />
-              <Simple a=10 b="hello".to_string() />
+              <Simple a=10 b="hello" />
             </>
           </panel>
         }
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn with_custom() {
         let props = CustomProps {
-            label: "Custom Label".to_string(),
+            label: "Custom Label".into(),
         };
         let renderer = TestRenderer::mount(Custom, props);
         assert_eq!(

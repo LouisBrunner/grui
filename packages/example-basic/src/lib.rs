@@ -1,20 +1,14 @@
 use godot::prelude::*;
 use grui::prelude::*;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 #[component]
-fn MenuButton<S>(label: S, on_pressed: SignalCallable) -> impl IntoControl
-where
-    S: Into<String> + ToGodot + Debug,
-{
-    control! { <button on:pressed=on_pressed text=label /> }
+fn MenuButton(label: String, on_pressed: SignalCallable) -> impl IntoControl {
+    control! { <button on:pressed=on_pressed text=label.clone() /> }
 }
 
 #[component]
-fn Menu<S>(title: S) -> impl IntoControl
-where
-    S: Into<String> + ToGodot + Debug + Display,
-{
+fn Menu(title: String) -> impl IntoControl {
     let (count, set_count) = signal(0);
 
     Effect::new(move || {
@@ -66,7 +60,7 @@ where
                 godot_print!("Button pressed! (count: {})", count.get());
                 set_count.update(|c| *c += 1);
               })
-              text=|| format!("Clicks: {}", count.get()) />
+              text=move || format!("Clicks: {}", count.get()) />
             // conditions
             {move || if count.get() > 3 {
               control!{ <label text="STOP!" /> }.into_any()

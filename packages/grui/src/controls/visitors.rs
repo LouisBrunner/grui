@@ -1,12 +1,8 @@
 use crate::{core::renderer::Render, prelude::SignalCallable};
 use frunk::{HCons, HNil};
-use godot::{
-    builtin::{Callable, Variant},
-    classes::Control,
-    meta::ToGodot,
-    obj::Gd,
-};
-use std::collections::HashMap;
+use godot::{builtin::Callable, classes::Control, meta::ToGodot, obj::Gd};
+use reactive_graph::effect::Effect;
+use std::{collections::HashMap, fmt::Debug};
 
 pub trait ChildrenGatherer {
     fn gather_controls(self) -> Vec<Gd<Control>>;
@@ -42,34 +38,38 @@ where
 }
 
 pub trait PropsGatherer {
-    fn gather_props(self) -> HashMap<String, Variant>;
+    fn set_props(self, gd: Gd<Control>);
     fn gather_json(self) -> HashMap<String, String>;
 }
 
 impl PropsGatherer for HNil {
-    fn gather_props(self) -> HashMap<String, Variant> {
-        HashMap::new()
-    }
+    fn set_props(self, _gd: Gd<Control>) {}
 
     fn gather_json(self) -> HashMap<String, String> {
         HashMap::new()
     }
 }
 
-impl<V, Tail> PropsGatherer for HCons<(String, V), Tail>
+impl<VF, V, Tail> PropsGatherer for HCons<(String, VF), Tail>
 where
-    V: std::fmt::Debug + ToGodot,
+    VF: Fn() -> V + 'static,
+    V: Debug + ToGodot,
     Tail: PropsGatherer,
 {
-    fn gather_props(self) -> HashMap<String, Variant> {
-        let mut map = self.tail.gather_props();
-        map.insert(self.head.0.to_string(), self.head.1.to_variant());
-        map
+    fn set_props(self, gd: Gd<Control>) {
+        {
+            let mut gd = gd.clone();
+            Effect::new(move || {
+                let value = (self.head.1)().to_variant();
+                gd.set(&self.head.0, &value);
+            });
+        }
+        self.tail.set_props(gd);
     }
 
     fn gather_json(self) -> HashMap<String, String> {
         let mut map = self.tail.gather_json();
-        map.insert(self.head.0.to_string(), format!("{:?}", self.head.1));
+        map.insert(self.head.0.to_string(), format!("{:?}", self.head.1()));
         map
     }
 }

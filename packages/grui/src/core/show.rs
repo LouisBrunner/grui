@@ -1,10 +1,11 @@
 use crate::prelude::{IntoAny, IntoControl};
 use reactive_graph::{computed::ArcMemo, traits::Get};
 
-pub fn show<W, F, C>(when: W, fallback: F, children: C) -> impl IntoControl
+pub fn show<W, F, FC, C>(when: W, fallback: F, children: C) -> impl IntoControl
 where
     W: Fn() -> bool + Send + Sync + 'static,
-    F: Fn() -> C,
+    F: Fn() -> FC,
+    FC: IntoControl + 'static,
     C: IntoControl + 'static,
 {
     let memoized_when = ArcMemo::new(move |_| when());

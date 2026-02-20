@@ -113,7 +113,7 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
                 }
                 let field_ident = attribute_to_ident(&key);
                 let value = attribute_value(attr, true, false)?;
-                fields.push(quote! { #field_ident: #value });
+                fields.push(quote! { #field_ident: #value.into() });
             }
             _ => {
                 return Err(Error::new(
@@ -537,7 +537,7 @@ fn attribute_value(
                 syn::Expr::Closure(closure) => Ok(quote! { #closure }),
                 _ => {
                     if wrap_fn {
-                        Ok(quote! { || #expr })
+                        Ok(quote! { move || #expr })
                     } else {
                         Ok(quote! { #expr })
                     }

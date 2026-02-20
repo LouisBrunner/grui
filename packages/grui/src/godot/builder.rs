@@ -46,15 +46,15 @@ where
         self,
         name: &str,
         value: FValue,
-    ) -> GDClass<HCons<(String, Value), Pp>, Sg, Ch>
+    ) -> GDClass<HCons<(String, FValue), Pp>, Sg, Ch>
     where
-        FValue: FnOnce() -> Value,
+        FValue: Fn() -> Value,
         Value: ToGodot,
     {
         GDClass {
             ty: self.ty,
             props: HCons {
-                head: (name.to_string(), value()),
+                head: (name.to_string(), value),
                 tail: self.props,
             },
             signals: self.signals,

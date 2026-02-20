@@ -32,10 +32,7 @@ where
 {
     fn to_controls(self) -> Vec<Gd<Control>> {
         let mut gd = self.ty.create_instance();
-        let props = self.props.gather_props();
-        for (key, value) in &props {
-            gd.set(key, value);
-        }
+        self.props.set_props(gd.clone());
         let signals = self.signals.gather_signals();
         for (signal, method) in &signals {
             gd.connect(signal, method);
