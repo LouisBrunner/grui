@@ -88,7 +88,7 @@ fn Basic() -> impl IntoControl {
     });
     control! {
         <panel />
-        <vboxcontainer>
+        <vboxcontainer anchor_right=1.0 anchor_bottom=1.0>
             <button on:pressed=handler text="Resume" />
             <button text="Save" />
             <button text="Load" />

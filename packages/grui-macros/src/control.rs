@@ -600,11 +600,11 @@ mod tests {
             ::grui::prelude::fragment()
               .child(::grui::prelude::panel().build())
               .child(::grui::prelude::v_box_container()
-                .child(::grui::prelude::button().on("click", resume).prop("text", || "Resume").build())
-                .child(::grui::prelude::button().prop("text", || "Save").build())
+                .child(::grui::prelude::button().on("click", resume).prop("text", move || "Resume").build())
+                .child(::grui::prelude::button().prop("text", move || "Save").build())
                 .child(
                   ::grui::prelude::fragment()
-                    .child(::grui::prelude::button().prop("text", || "Load").build())
+                    .child(::grui::prelude::button().prop("text", move || "Load").build())
                 )
                 .build()
               )
@@ -621,7 +621,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::button().prop("text", || "Click me").build()
+            ::grui::prelude::button().prop("text", move || "Click me").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -635,7 +635,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::button().on("pressed", on_pressed).prop("text", || "Save").build()
+            ::grui::prelude::button().on("pressed", on_pressed).prop("text", move || "Save").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -651,7 +651,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::button().on("pressed", { Callable::from_fn(| | { counter.mutate(|c| *c += 1); }) }).prop("text", || "Save").build()
+            ::grui::prelude::button().on("pressed", { Callable::from_fn(| | { counter.mutate(|c| *c += 1); }) }).prop("text", move || "Save").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -665,7 +665,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::label().prop("text", || format!("{} {}", title, i)).build()
+            ::grui::prelude::label().prop("text", move || format!("{} {}", title, i)).build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -701,9 +701,9 @@ mod tests {
         let output = transform(input).expect("transform ok");
         let expected = quote! {
             ::grui::prelude::v_box_container()
-              .child(::grui::prelude::button().prop("text", || "One").build())
-              .child(::grui::prelude::button().prop("text", || "Two").build())
-              .child(::grui::prelude::button().prop("text", || "Three").build())
+              .child(::grui::prelude::button().prop("text", move || "One").build())
+              .child(::grui::prelude::button().prop("text", move || "Two").build())
+              .child(::grui::prelude::button().prop("text", move || "Three").build())
               .build()
         };
 
@@ -746,7 +746,7 @@ mod tests {
             ::grui::prelude::for_each(
                 | | (1..=5),
                 |i| *i,
-                |i| { ::grui::prelude::label().prop("text", || format!("Item {}", i)).build() },
+                |i| { ::grui::prelude::label().prop("text", move || format!("Item {}", i)).build() },
             )
         };
         assert_eq!(pretty(output), pretty(expected));
@@ -799,7 +799,7 @@ mod tests {
         let output = transform(input).expect("transform ok");
         let expected = quote! {
             MyComp(MyCompProps {
-                children: ::grui::prelude::button().prop("text", || "Click me").build(),
+                children: ::grui::prelude::button().prop("text", move || "Click me").build(),
             })
         };
 
