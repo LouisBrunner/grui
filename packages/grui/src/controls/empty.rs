@@ -8,9 +8,7 @@ pub fn empty() -> impl IntoControl {
 }
 
 impl Render for Empty {
-    fn to_controls(self) -> Vec<Gd<Control>> {
-        Vec::new()
-    }
+    fn mount(self, _parent: Gd<Control>) {}
 
     fn to_json(self) -> String {
         "null".to_string()

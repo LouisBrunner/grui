@@ -18,13 +18,13 @@ impl<T: Render> IntoRender for T {
 }
 
 pub trait Render: Sized {
-    fn to_controls(self) -> Vec<Gd<Control>>;
+    fn mount(self, parent: Gd<Control>);
     fn to_json(self) -> String;
 }
 
 pub struct Renderer {
     #[allow(dead_code)] // FIXME: remove later
-    root: Vec<Gd<Control>>,
+    root: Gd<Control>,
     #[allow(dead_code)] // FIXME: remove later
     owner: Owner,
 }
@@ -39,19 +39,18 @@ impl Renderer {
     {
         let _ = Executor::init_custom_executor(GodotExecutor {});
 
-        let mut parent = parent.into_arg().to_owned();
+        let parent = parent.into_arg().to_owned();
 
         let owner = Owner::new();
-        let mounted = owner.with(move || {
-            let controls = component(props).into_control().to_controls();
-            for control in &controls {
-                parent.add_child(control);
-            }
-            controls
-        });
+        {
+            let parent = parent.clone();
+            owner.with(move || {
+                component(props).into_control().mount(parent);
+            });
+        }
 
         Renderer {
-            root: mounted,
+            root: parent,
             owner,
         }
     }

@@ -2,6 +2,7 @@ use crate::{
     core::renderer::Render,
     prelude::{IntoControl, OwnedControl},
 };
+use godot::{classes::Control, obj::Gd};
 use reactive_graph::{
     owner::Owner,
     signal::{ArcRwSignal, ReadSignal},
@@ -81,8 +82,8 @@ where
     CIF: Fn(usize),
     T: Send,
 {
-    fn to_controls(self) -> Vec<godot::prelude::Gd<godot::classes::Control>> {
-        self.as_controls().to_controls()
+    fn mount(self, parent: Gd<Control>) {
+        self.as_controls().mount(parent)
     }
 
     fn to_json(self) -> String {

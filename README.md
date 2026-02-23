@@ -98,7 +98,7 @@ pub struct HUDRoot {
 
 # Missing
 
-- [ ] Reactive properties
+- [ ] Reactive For/Show
 - [ ] Caching for `<For />` / `<ForEnumerate />`
 - [ ] Themes & Override
 - [ ] Statically typed props/signals

@@ -24,8 +24,8 @@ impl<T> Render for OwnedControl<T>
 where
     T: Render,
 {
-    fn to_controls(self) -> Vec<Gd<Control>> {
-        self.inner.to_controls()
+    fn mount(self, parent: Gd<Control>) {
+        self.inner.mount(parent);
     }
 
     fn to_json(self) -> String {

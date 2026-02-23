@@ -1,5 +1,9 @@
 use crate::{core::renderer::Render, prelude::IntoControl};
-use godot::builtin::{Callable, Variant};
+use godot::{
+    builtin::{Callable, Variant},
+    classes::Control,
+    obj::Gd,
+};
 use std::fmt::Debug;
 
 pub trait CompatibleFn: 'static + FnMut(&[&Variant]) -> () {}
@@ -39,8 +43,8 @@ where
     T: FnOnce() -> C,
     C: IntoControl,
 {
-    fn to_controls(self) -> Vec<godot::prelude::Gd<godot::classes::Control>> {
-        (self)().to_controls()
+    fn mount(self, parent: Gd<Control>) {
+        (self)().mount(parent);
     }
 
     fn to_json(self) -> String {

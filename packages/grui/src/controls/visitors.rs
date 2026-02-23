@@ -5,14 +5,12 @@ use reactive_graph::effect::Effect;
 use std::{collections::HashMap, fmt::Debug};
 
 pub trait ChildrenGatherer {
-    fn gather_controls(self) -> Vec<Gd<Control>>;
+    fn mount(self, parent: Gd<Control>);
     fn gather_json(self) -> Vec<String>;
 }
 
 impl ChildrenGatherer for HNil {
-    fn gather_controls(self) -> Vec<Gd<Control>> {
-        Vec::new()
-    }
+    fn mount(self, _parent: Gd<Control>) {}
 
     fn gather_json(self) -> Vec<String> {
         Vec::new()
@@ -24,10 +22,9 @@ where
     Head: Render,
     Tail: ChildrenGatherer,
 {
-    fn gather_controls(self) -> Vec<Gd<Control>> {
-        let mut vec = self.tail.gather_controls();
-        vec.extend(self.head.to_controls());
-        vec
+    fn mount(self, parent: Gd<Control>) {
+        self.tail.mount(parent.clone());
+        self.head.mount(parent);
     }
 
     fn gather_json(self) -> Vec<String> {

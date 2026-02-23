@@ -30,18 +30,15 @@ where
     Sg: HList + SignalsGatherer,
     Ch: HList + ChildrenGatherer,
 {
-    fn to_controls(self) -> Vec<Gd<Control>> {
+    fn mount(self, mut parent: Gd<Control>) {
         let mut gd = self.ty.create_instance();
         self.props.set_props(gd.clone());
         let signals = self.signals.gather_signals();
         for (signal, method) in &signals {
             gd.connect(signal, method);
         }
-        let children = self.children.gather_controls();
-        for child in &children {
-            gd.add_child(child);
-        }
-        vec![gd]
+        self.children.mount(gd.clone());
+        parent.add_child(&gd);
     }
 
     fn to_json(self) -> String {

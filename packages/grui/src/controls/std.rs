@@ -2,10 +2,10 @@ use crate::{controls::IntoControl, core::renderer::Render};
 use godot::{classes::Control, obj::Gd};
 
 impl<T: Render> Render for Vec<T> {
-    fn to_controls(self) -> Vec<Gd<Control>> {
-        self.into_iter()
-            .flat_map(|child| child.to_controls())
-            .collect()
+    fn mount(self, parent: Gd<Control>) {
+        for child in self.into_iter() {
+            child.mount(parent.clone());
+        }
     }
 
     fn to_json(self) -> String {

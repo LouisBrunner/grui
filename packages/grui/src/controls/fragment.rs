@@ -17,8 +17,8 @@ impl<Ch> Render for Fragment<Ch>
 where
     Ch: HList + ChildrenGatherer,
 {
-    fn to_controls(self) -> Vec<Gd<Control>> {
-        self.children.gather_controls()
+    fn mount(self, parent: Gd<Control>) {
+        self.children.mount(parent);
     }
 
     fn to_json(self) -> String {

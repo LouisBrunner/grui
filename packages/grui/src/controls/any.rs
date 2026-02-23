@@ -1,5 +1,6 @@
 use crate::core::renderer::Render;
 use erased::ErasedBox;
+use godot::{classes::Control, obj::Gd};
 
 fn check(id_1: &std::any::TypeId, id_2: &std::any::TypeId) {
     if id_1 != id_2 {
@@ -40,13 +41,13 @@ impl Drop for Erased {
 
 pub struct AnyControl {
     value: Erased,
-    to_controls: fn(Erased) -> Vec<godot::prelude::Gd<godot::classes::Control>>,
+    mount: fn(Erased, Gd<Control>),
     to_json: fn(Erased) -> String,
 }
 
 impl Render for AnyControl {
-    fn to_controls(self) -> Vec<godot::prelude::Gd<godot::classes::Control>> {
-        (self.to_controls)(self.value)
+    fn mount(self, parent: Gd<Control>) {
+        (self.mount)(self.value, parent);
     }
 
     fn to_json(self) -> String {
@@ -63,10 +64,8 @@ where
     T: Render + 'static,
 {
     fn into_any(self) -> AnyControl {
-        fn to_controls<T: Render + 'static>(
-            value: Erased,
-        ) -> Vec<godot::prelude::Gd<godot::classes::Control>> {
-            value.into_inner::<T>().to_controls()
+        fn mount<T: Render + 'static>(value: Erased, parent: Gd<Control>) {
+            value.into_inner::<T>().mount(parent)
         }
 
         fn to_json<T: Render + 'static>(value: Erased) -> String {
@@ -75,7 +74,7 @@ where
 
         AnyControl {
             value: Erased::new(self),
-            to_controls: to_controls::<T>,
+            mount: mount::<T>,
             to_json: to_json::<T>,
         }
     }
