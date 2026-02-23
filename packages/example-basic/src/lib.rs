@@ -1,4 +1,4 @@
-use godot::prelude::*;
+use godot::{classes::control::SizeFlags, global::HorizontalAlignment, prelude::*};
 use grui::prelude::*;
 use std::fmt::Debug;
 
@@ -34,25 +34,25 @@ fn Menu(title: String) -> impl IntoControl {
               }).collect::<Vec<_>>()
             }
             // dynamic iteration
-            <hboxcontainer>
-              <vboxcontainer>
+            <hboxcontainer anchor_left=0.5 anchor_right=0.5>
+              <vboxcontainer size_flags_horizontal=SizeFlags::EXPAND_FILL>
                 <For each=move || 0..count.get() key=|i| *i let(i)>
-                    <label text=format!("Tick 1 {}", i) />
+                  <label text=format!("Tick 1 {}", i) horizontal_alignment=if i % 2 == 0 { HorizontalAlignment::RIGHT } else { HorizontalAlignment::LEFT } />
                 </For>
               </vboxcontainer>
-              <vboxcontainer>
+              <vboxcontainer size_flags_horizontal=SizeFlags::EXPAND_FILL>
                 <For each=move || 0..count.get() key=|i| *i children=|i| {
-                  control! { <label text=format!("Tick 2 {}", i) /> }
+                  control! { <label text=format!("Tick 2 {}", i) horizontal_alignment=if i % 2 == 0 { HorizontalAlignment::RIGHT } else { HorizontalAlignment::LEFT } /> }
                 } />
               </vboxcontainer>
-              <vboxcontainer>
+              <vboxcontainer size_flags_horizontal=SizeFlags::EXPAND_FILL>
                 <ForEnumerate each=move || 0..count.get() key=|i| *i let(idx, i)>
-                    <label text=format!("Tick 3 {} ({})", i, idx.get()) />
+                    <label text=format!("Tick 3 {} ({})", i, idx.get()) horizontal_alignment=if i % 2 == 0 { HorizontalAlignment::RIGHT } else { HorizontalAlignment::LEFT } />
                 </ForEnumerate>
               </vboxcontainer>
-              <vboxcontainer>
+              <vboxcontainer size_flags_horizontal=SizeFlags::EXPAND_FILL>
                 <ForEnumerate each=move || 0..count.get() key=|i| *i children=|idx, i| {
-                  control! { <label text=format!("Tick 4 {} ({})", i, idx.get()) /> }
+                  control! { <label text=format!("Tick 4 {} ({})", i, idx.get()) horizontal_alignment=if i % 2 == 0 { HorizontalAlignment::RIGHT } else { HorizontalAlignment::LEFT } /> }
                 } />
               </vboxcontainer>
             </hboxcontainer>

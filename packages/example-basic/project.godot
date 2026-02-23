@@ -17,3 +17,8 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 config/name="GRUI Basic"
 run/main_scene="uid://lrke0kors87l"
 config/features=PackedStringArray("4.6")
+
+[display]
+
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
