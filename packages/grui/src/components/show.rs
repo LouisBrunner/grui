@@ -1,7 +1,9 @@
 use crate::prelude::{IntoAny, IntoControl};
+use grui_macros::component;
 use reactive_graph::{computed::ArcMemo, traits::Get};
 
-pub fn show<W, F, FC, C>(when: W, fallback: F, children: C) -> impl IntoControl
+#[component]
+pub fn Show<W, F, FC, C>(when: W, fallback: F, children: C) -> impl IntoControl
 where
     W: Fn() -> bool + Send + Sync + 'static,
     F: Fn() -> FC,

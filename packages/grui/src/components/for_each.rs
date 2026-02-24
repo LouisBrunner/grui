@@ -3,6 +3,7 @@ use crate::{
     prelude::{IntoControl, OwnedControl},
 };
 use godot::{classes::Control, obj::Gd};
+use grui_macros::component;
 use reactive_graph::{
     owner::Owner,
     signal::{ArcRwSignal, ReadSignal},
@@ -10,7 +11,8 @@ use reactive_graph::{
 };
 use std::hash::Hash;
 
-pub fn for_each<EF, E, KF, K, CF, C, T>(each: EF, key: KF, children: CF) -> impl IntoControl
+#[component]
+pub fn For<EF, E, KF, K, CF, C, T>(each: EF, key: KF, children: CF) -> impl IntoControl
 where
     EF: Fn() -> E,
     E: IntoIterator<Item = T>,
@@ -29,11 +31,8 @@ where
     move || for_control(each(), key.clone(), children.clone())
 }
 
-pub fn for_each_enumerate<EF, E, KF, K, CF, C, T>(
-    each: EF,
-    key: KF,
-    children: CF,
-) -> impl IntoControl
+#[component]
+pub fn ForEnumerate<EF, E, KF, K, CF, C, T>(each: EF, key: KF, children: CF) -> impl IntoControl
 where
     EF: Fn() -> E,
     E: IntoIterator<Item = T>,

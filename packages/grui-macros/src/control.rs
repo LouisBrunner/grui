@@ -77,12 +77,7 @@ fn add_children(mut builder: TokenStream, children: Vec<TokenStream>) -> TokenSt
 }
 
 fn transform_element(element: &HtmlElement) -> Result<TokenStream> {
-    if let Some(tag) = is_special_tag(element.name()) {
-        match tag {
-            SpecialTag::For | SpecialTag::ForEnumerate => transform_for(tag, element),
-            SpecialTag::Show => transform_show(element),
-        }
-    } else if is_component_tag(element.name())? {
+    if is_component_tag(element.name())? {
         transform_component(element)
     } else {
         transform_builtin(element)
@@ -100,21 +95,32 @@ fn transform_builtin(element: &HtmlElement) -> Result<TokenStream> {
 fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
     let (component_path, props_path) = component_paths(element.name())?;
     let mut fields = Vec::new();
+    let mut pattern_tokens = None;
+    let mut children_attribute = false;
 
     for attribute in element.open_tag.attributes.iter() {
         match attribute {
-            NodeAttribute::Attribute(attr) => {
-                let key = attribute_name(attr)?;
-                if key == "children" {
-                    return Err(Error::new(
-                        attr.span(),
-                        "children must be provided as element contents, not as an attribute",
-                    ));
+            NodeAttribute::Attribute(attr) => match &attr.possible_value {
+                KeyedAttributeValue::Binding(binding) => {
+                    let inputs = &binding.inputs;
+                    if pattern_tokens.is_some() {
+                        return Err(Error::new(
+                            attr.span(),
+                            "cannot have multiple binding-style attributes",
+                        ));
+                    }
+                    pattern_tokens = Some(quote! { #inputs });
                 }
-                let field_ident = attribute_to_ident(&key);
-                let value = attribute_value(attr, true, false)?;
-                fields.push(quote! { #field_ident: #value });
-            }
+                _ => {
+                    let key = attribute_name(attr)?;
+                    if key == "children" {
+                        children_attribute = true;
+                    }
+                    let field_ident = attribute_to_ident(&key);
+                    let value = attribute_value(attr, true, false)?;
+                    fields.push(quote! { #field_ident: #value });
+                }
+            },
             _ => {
                 return Err(Error::new(
                     attribute.span(),
@@ -124,11 +130,32 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
         }
     }
 
-    let children = transform_children(&element.children)?;
-    let children_expr = make_children(children);
+    let has_children_nodes = element.children.len() > 0;
 
-    if let Some(children_expr) = children_expr {
-        fields.push(quote! { children: #children_expr });
+    if children_attribute && has_children_nodes {
+        return Err(Error::new(
+            element.span(),
+            "cannot pass children nodes and a children attribute",
+        ));
+    }
+    if children_attribute && pattern_tokens.is_some() {
+        return Err(Error::new(
+            element.span(),
+            "cannot pass a binding-style attribute and a children attribute, use children nodes instead",
+        ));
+    }
+
+    if has_children_nodes {
+        let children = transform_children(&element.children)?;
+        let children_expr = make_children(children);
+
+        if let Some(mut children_expr) = children_expr {
+            if let Some(pattern) = pattern_tokens {
+                children_expr = quote! { |#pattern| #children_expr };
+            }
+
+            fields.push(quote! { children: #children_expr });
+        }
     }
 
     let props_literal = quote! {
@@ -169,217 +196,6 @@ fn apply_attributes(mut builder: TokenStream, element: &HtmlElement) -> Result<T
 
 fn transform_children(nodes: &[HtmlNode]) -> Result<Vec<TokenStream>> {
     nodes.iter().map(transform_node).collect()
-}
-
-#[derive(PartialEq, Eq)]
-enum SpecialTag {
-    For,
-    ForEnumerate,
-    Show,
-}
-
-fn is_special_tag(name: &NodeName) -> Option<SpecialTag> {
-    const FOR_TAG: &str = "For";
-    const FOR_ENUMERATE_TAG: &str = "ForEnumerate";
-    const SHOW_TAG: &str = "Show";
-
-    match name {
-        NodeName::Path(path) => match path_to_string(path).as_str() {
-            FOR_TAG => Some(SpecialTag::For),
-            FOR_ENUMERATE_TAG => Some(SpecialTag::ForEnumerate),
-            SHOW_TAG => Some(SpecialTag::Show),
-            _ => None,
-        },
-        NodeName::Punctuated(_) => None,
-        NodeName::Block(_) => None,
-    }
-}
-
-fn transform_for(tag: SpecialTag, element: &HtmlElement) -> Result<TokenStream> {
-    let name = match element.name() {
-        NodeName::Path(path) => path_to_string(path),
-        _ => {
-            return Err(Error::new(
-                element.span(),
-                format!("invalid node name {} for For tag", element.name()),
-            ));
-        }
-    };
-    let is_enum = tag == SpecialTag::ForEnumerate;
-
-    let mut each_expr: Option<TokenStream> = None;
-    let mut key_expr: Option<TokenStream> = None;
-    let mut children_expr: Option<TokenStream> = None;
-    let mut pattern_tokens: Option<TokenStream> = None;
-
-    for attribute in element.open_tag.attributes.iter() {
-        match attribute {
-            NodeAttribute::Attribute(attr) => {
-                let key = attribute_name(attr)?;
-                match key.as_str() {
-                    "each" => {
-                        let expr = attribute_value(attr, false, false)?;
-                        each_expr = Some(expr);
-                    }
-                    "key" => {
-                        let expr = attribute_value(attr, false, false)?;
-                        key_expr = Some(expr);
-                    }
-                    "children" => {
-                        let expr = attribute_value(attr, false, false)?;
-                        children_expr = Some(expr);
-                    }
-                    "let" => match &attr.possible_value {
-                        KeyedAttributeValue::Binding(binding) => {
-                            let inputs = &binding.inputs;
-                            pattern_tokens = Some(quote! { #inputs });
-                        }
-                        KeyedAttributeValue::Value(value_expr) => match &value_expr.value {
-                            KVAttributeValue::Expr(expr) => {
-                                pattern_tokens = Some(quote! { #expr });
-                            }
-                            KVAttributeValue::InvalidBraced(_) => {
-                                return Err(Error::new(attr.span(), "invalid let pattern"));
-                            }
-                        },
-                        KeyedAttributeValue::None => {
-                            return Err(Error::new(attr.span(), "let(...) requires a pattern"));
-                        }
-                    },
-                    other => {
-                        return Err(Error::new(
-                            attr.span(),
-                            format!("unsupported attribute `{}` on <{}>", other, name),
-                        ));
-                    }
-                }
-            }
-            NodeAttribute::Block(_) => {
-                return Err(Error::new(
-                    attribute.span(),
-                    format!("attribute blocks are not supported on <{}>", name),
-                ));
-            }
-        }
-    }
-
-    if pattern_tokens.is_some() && children_expr.is_some() {
-        return Err(Error::new(
-            element.name().span(),
-            format!(
-                "<{}> cannot have both a `let` pattern and a `children` property",
-                name
-            ),
-        ));
-    }
-
-    let each_expr = each_expr.ok_or_else(|| {
-        Error::new(
-            element.name().span(),
-            format!("<{}> requires `each` attribute", name),
-        )
-    })?;
-    let key_expr = key_expr.ok_or_else(|| {
-        Error::new(
-            element.name().span(),
-            format!("<{}> requires `key` attribute", name),
-        )
-    })?;
-
-    let children_expr = if let Some(pattern) = pattern_tokens {
-        let children = transform_children(&element.children)?;
-        let body = make_children(children).unwrap_or(quote! { ::grui::prelude::empty() });
-        quote! {
-          |#pattern| { #body }
-        }
-    } else if let Some(children) = children_expr {
-        children
-    } else {
-        return Err(Error::new(
-            element.name().span(),
-            format!(
-                "<{}> requires either a `let` pattern or a `children` property",
-                name
-            ),
-        ));
-    };
-
-    let output = if is_enum {
-        quote! {
-          ::grui::prelude::for_each_enumerate(
-              #each_expr,
-              #key_expr,
-              #children_expr,
-          )
-        }
-    } else {
-        quote! {
-          ::grui::prelude::for_each(
-              #each_expr,
-              #key_expr,
-              #children_expr,
-          )
-        }
-    };
-
-    Ok(output)
-}
-
-fn transform_show(element: &HtmlElement) -> Result<TokenStream> {
-    let mut when_expr: Option<TokenStream> = None;
-    let mut fallback_expr: Option<TokenStream> = None;
-
-    for attribute in element.open_tag.attributes.iter() {
-        match attribute {
-            NodeAttribute::Attribute(attr) => {
-                let key = attribute_name(attr)?;
-                match key.as_str() {
-                    "when" => {
-                        let expr = attribute_value(attr, false, false)?;
-                        when_expr = Some(expr);
-                    }
-                    "fallback" => {
-                        let expr = attribute_value(attr, false, false)?;
-                        fallback_expr = Some(expr);
-                    }
-                    other => {
-                        return Err(Error::new(
-                            attr.span(),
-                            format!("unsupported attribute `{}` on <Show>", other),
-                        ));
-                    }
-                }
-            }
-            NodeAttribute::Block(_) => {
-                return Err(Error::new(
-                    attribute.span(),
-                    "attribute blocks are not supported on <For>",
-                ));
-            }
-        }
-    }
-
-    let when_expr = when_expr
-        .ok_or_else(|| Error::new(element.name().span(), "<Show> requires `when` attribute"))?;
-    let fallback_expr = fallback_expr.ok_or_else(|| {
-        Error::new(
-            element.name().span(),
-            "<Show> requires `fallback` attribute",
-        )
-    })?;
-
-    let children = transform_children(&element.children)?;
-    let body_expr = make_children(children).unwrap_or(quote! { ::grui::prelude::empty() });
-
-    let output = quote! {
-      ::grui::prelude::show(
-          #when_expr,
-          #fallback_expr,
-          #body_expr,
-      )
-    };
-
-    Ok(output)
 }
 
 fn is_component_tag(name: &NodeName) -> Result<bool> {
@@ -743,10 +559,12 @@ mod tests {
         };
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::for_each(
-                | | (1..=5),
-                |i| *i,
-                |i| { ::grui::prelude::label().prop("text", move || format!("Item {}", i)).build() },
+            For(
+              ForProps {
+                each: | | (1..=5),
+                key: |i| *i,
+                children: |i| ::grui::prelude::label().prop("text", move || format!("Item {}", i)).build(),
+              }
             )
         };
         assert_eq!(pretty(output), pretty(expected));

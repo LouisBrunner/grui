@@ -92,15 +92,20 @@ pub struct HUDRoot {
 
 - `signal(initial)` returns `(ReadSignal<T>, WriteSignal<T>)`, call `set()` or `update()` to mutate, which marks the UI dirty.
 - `Effect::new(|| ...)` runs immediately and after each render triggered by any state write.
-- All the memo functions provided by `reactive_graph` (see Leptos' documentation for more details).
+- All the other functions provided by `reactive_graph` (see Leptos' documentation for more details).
 - `<For/>` and `<ForEnumerate />` for dynamic amount of entries.
 - `<Show />` for efficient conditions.
 
-# Missing
+## Missing
 
 - [ ] Reactive For/Show
 - [ ] Caching for `<For />` / `<ForEnumerate />`
 - [ ] Themes & Override
+- [ ] Forms
 - [ ] Statically typed props/signals
 - [ ] Preview in Godot Editor
 - [ ] Better fallback macros for invalid syntax
+
+## Acknowledgments
+
+- Leptos: which deeply influenced this project. The `grui` API is a slightly slimmed down version of the Leptops one. We also use their brilliant `reactive_graph` crate. Some of the structures/types are pretty much the same. Thank you for your amazing work!
