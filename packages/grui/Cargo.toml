@@ -9,6 +9,7 @@ erased = "0.1.2"
 frunk = "0.4.4"
 godot = { workspace = true }
 grui-macros = { workspace = true }
+indexmap = "2.13.0"
 next_tuple = "0.1.0"
 reactive_graph = { version = "0.2.13", features = ["effects"] }
 strum = { version = "0.27.2", features = ["derive"] }

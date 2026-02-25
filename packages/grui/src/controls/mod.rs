@@ -1,59 +1,59 @@
-mod any;
-mod builtin;
-mod empty;
+pub(crate) mod any;
+pub(crate) mod builtin;
+pub(crate) mod children;
 mod fragment;
 mod functions;
-mod owned;
+pub(crate) mod owned;
+pub(crate) mod props;
+pub(crate) mod signals;
 mod std;
-pub mod visitors;
 
-use crate::core::renderer::Render;
-pub use any::{AnyControl, IntoAny};
-pub(crate) use builtin::Builtin;
-pub use empty::empty;
-pub use fragment::fragment;
-pub use functions::*;
-use godot::{classes::Control, obj::Gd};
-pub use owned::OwnedControl;
-pub use std::CollectControl;
-pub use visitors::*;
+use crate::core::render::Render;
+// pub use any::{AnyControl, IntoAny};
+// pub(crate) use builtin::Builtin;
+// pub use fragment::fragment;
+// pub use functions::*;
+// pub use owned::OwnedControl;
+// pub use std::CollectControl;
 
 pub trait IntoControl: Sized + Render {
-    fn into_control(self) -> GControl<Self>;
+    fn into_control(self) -> Self;
 }
 
 impl<T> IntoControl for T
 where
     T: Sized + Render,
 {
-    fn into_control(self) -> GControl<Self> {
-        GControl { inner: self }
+    fn into_control(self) -> Self {
+        self
     }
 }
 
-pub struct GControl<T> {
-    inner: T,
-}
+// pub struct GControl<T> {
+//     inner: T,
+// }
 
-impl<T> GControl<T> {
-    pub fn new(inner: T) -> Self {
-        GControl { inner }
-    }
+// impl<T> GControl<T> {
+//     pub fn new(inner: T) -> Self {
+//         GControl { inner }
+//     }
+// }
 
-    pub fn into_inner(self) -> T {
-        self.inner
-    }
-}
+// impl<T> Render for GControl<T>
+// where
+//     T: Render,
+// {
+//     type State = T::State;
 
-impl<T> Render for GControl<T>
-where
-    T: Render,
-{
-    fn mount(self, parent: Gd<Control>) {
-        self.inner.mount(parent);
-    }
+//     fn build(self) -> Self::State {
+//         self.inner.build()
+//     }
 
-    fn to_json(self) -> String {
-        self.inner.to_json()
-    }
-}
+//     fn rebuild(self, state: &mut Self::State) {
+//         self.inner.rebuild(state);
+//     }
+
+//     fn to_json(self) -> String {
+//         self.inner.to_json()
+//     }
+// }

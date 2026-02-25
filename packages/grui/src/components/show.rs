@@ -1,4 +1,4 @@
-use crate::prelude::{IntoAny, IntoControl};
+use crate::controls::{any::IntoAny, IntoControl};
 use grui_macros::component;
 use reactive_graph::{computed::ArcMemo, traits::Get};
 

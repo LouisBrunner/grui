@@ -1,58 +1,52 @@
-use crate::{controls::IntoControl, prelude::GodotExecutor};
+use super::{
+    reactive::GodotExecutor,
+    render::{Mountable, Render},
+};
+use crate::controls::IntoControl;
 use any_spawner::Executor;
 use godot::{classes::Control, meta::AsArg, obj::Gd};
 use reactive_graph::owner::Owner;
 
-pub trait IntoRender {
-    type Output;
-
-    fn into_render(self) -> Self::Output;
-}
-
-impl<T: Render> IntoRender for T {
-    type Output = Self;
-
-    fn into_render(self) -> Self::Output {
-        self
-    }
-}
-
-pub trait Render: Sized {
-    fn mount(self, parent: Gd<Control>);
-    fn to_json(self) -> String;
-}
-
-pub struct Renderer {
+pub struct Renderer<M: Mountable> {
     #[allow(dead_code)] // FIXME: remove later
-    root: Gd<Control>,
+    mounted: M,
     #[allow(dead_code)] // FIXME: remove later
     owner: Owner,
 }
 
-impl Renderer {
+impl<M> Drop for Renderer<M>
+where
+    M: Mountable,
+{
+    fn drop(&mut self) {
+        self.mounted.unmount();
+    }
+}
+
+impl<M> Renderer<M>
+where
+    M: Mountable,
+{
     pub fn mount<N, P, C, T>(parent: N, component: C, props: P) -> Self
     where
         N: AsArg<Gd<Control>>,
         C: FnOnce(P) -> T,
         T: IntoControl,
-        T: Render,
+        T: Render<State = M>,
     {
         let _ = Executor::init_custom_executor(GodotExecutor {});
 
         let parent = parent.into_arg().to_owned();
 
         let owner = Owner::new();
-        {
-            let parent = parent.clone();
-            owner.with(move || {
-                component(props).into_control().mount(parent);
-            });
-        }
+        let mounted = owner.with(move || {
+            let control = component(props).into_control();
+            let mut mountable = control.build();
+            mountable.mount(&parent);
+            mountable
+        });
 
-        Renderer {
-            root: parent,
-            owner,
-        }
+        Renderer { mounted, owner }
     }
 }
 

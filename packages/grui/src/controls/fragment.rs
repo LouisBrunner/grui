@@ -1,9 +1,6 @@
-use crate::{
-    core::renderer::Render,
-    prelude::{visitors::ChildrenGatherer, IntoRender},
-};
+use super::children::ChildrenGatherer;
+use crate::core::{render::Render, IntoRender};
 use frunk::{hlist::HList, HCons, HNil};
-use godot::{classes::Control, obj::Gd};
 
 pub struct Fragment<Ch> {
     children: Ch,
@@ -17,8 +14,14 @@ impl<Ch> Render for Fragment<Ch>
 where
     Ch: HList + ChildrenGatherer,
 {
-    fn mount(self, parent: Gd<Control>) {
-        self.children.mount(parent);
+    type State = Ch::State;
+
+    fn build(self) -> Self::State {
+        self.children.build()
+    }
+
+    fn rebuild(self, state: &mut Self::State) {
+        self.children.rebuild(state);
     }
 
     fn to_json(self) -> String {

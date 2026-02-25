@@ -1,8 +1,10 @@
 use crate::{
-    controls::{Builtin, IntoControl},
-    core::renderer::IntoRender,
+    controls::{
+        builtin::Builtin, children::ChildrenGatherer, props::PropsGatherer,
+        signals::SignalsGatherer, IntoControl,
+    },
+    core::render::IntoRender,
     godot::ty::GDType,
-    prelude::visitors::{ChildrenGatherer, PropsGatherer, SignalsGatherer},
 };
 use frunk::{hlist::HList, HCons, HNil};
 use godot::meta::ToGodot;

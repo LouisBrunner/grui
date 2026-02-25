@@ -1,5 +1,5 @@
-use crate::{core::renderer::Render, prelude::IntoControl};
-use godot::{classes::Control, obj::Gd};
+use super::IntoControl;
+use crate::core::render::Render;
 use reactive_graph::owner::Owner;
 
 pub struct OwnedControl<T> {
@@ -24,8 +24,14 @@ impl<T> Render for OwnedControl<T>
 where
     T: Render,
 {
-    fn mount(self, parent: Gd<Control>) {
-        self.inner.mount(parent);
+    type State = T::State;
+
+    fn build(self) -> Self::State {
+        self.inner.build()
+    }
+
+    fn rebuild(self, state: &mut Self::State) {
+        self.inner.rebuild(state);
     }
 
     fn to_json(self) -> String {

@@ -1,12 +1,13 @@
+use super::{children::ChildrenGatherer, props::PropsGatherer, signals::SignalsGatherer};
 use crate::{
-    core::renderer::Render,
+    core::render::{Mountable, Render},
     godot::ty::GDType,
-    prelude::visitors::{ChildrenGatherer, PropsGatherer, SignalsGatherer},
 };
 use frunk::hlist::HList;
 use godot::{classes::Control, obj::Gd};
+use reactive_graph::effect::RenderEffect;
 
-pub(crate) struct Builtin<Pp, Sg, Ch> {
+pub struct Builtin<Pp, Sg, Ch> {
     ty: GDType,
     props: Pp,
     signals: Sg,
@@ -30,15 +31,26 @@ where
     Sg: HList + SignalsGatherer,
     Ch: HList + ChildrenGatherer,
 {
-    fn mount(self, mut parent: Gd<Control>) {
+    type State = StateGD<Ch::State>;
+
+    fn build(self) -> Self::State {
         let mut gd = self.ty.create_instance();
-        self.props.set_props(gd.clone());
+        let props = self.props.attach(gd.clone());
         let signals = self.signals.gather_signals();
         for (signal, method) in &signals {
             gd.connect(signal, method);
         }
-        self.children.mount(gd.clone());
-        parent.add_child(&gd);
+        let mut children = self.children.build();
+        children.mount(&gd);
+        StateGD {
+            node: gd,
+            props,
+            children,
+        }
+    }
+
+    fn rebuild(self, state: &mut Self::State) {
+        self.children.rebuild(&mut state.children);
     }
 
     fn to_json(self) -> String {
@@ -71,5 +83,21 @@ where
         }
         json.push('}');
         json
+    }
+}
+
+pub struct StateGD<Ch> {
+    node: Gd<Control>,
+    props: Vec<RenderEffect<()>>,
+    children: Ch,
+}
+
+impl<Ch> Mountable for StateGD<Ch> {
+    fn mount(&mut self, parent: &Gd<Control>) {
+        parent.clone().add_child(&self.node);
+    }
+
+    fn unmount(&mut self) {
+        self.node.queue_free();
     }
 }

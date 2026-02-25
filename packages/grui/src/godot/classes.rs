@@ -1,4 +1,4 @@
-use crate::godot::{builder::GDClassBuilder, ty::GDType};
+use super::{builder::GDClassBuilder, ty::GDType};
 
 pub fn aspect_ratio_container() -> GDClassBuilder {
     GDClassBuilder::new(GDType::AspectRatioContainer)
