@@ -15,6 +15,8 @@ use reactive_graph::{
 };
 use std::hash::Hash;
 
+// FIXME: I don't think we are using set_index correctly
+
 #[component]
 pub fn For<EF, E, KF, K, CF, C, T>(each: EF, key: KF, children: CF) -> impl IntoControl
 where
@@ -217,7 +219,6 @@ where
         let mut prev = None;
         let mut new_items = Vec::with_capacity(new_children.len());
         for op in diff {
-            log::debug!("Operation: {:?}", op);
             match op {
                 similar::DiffOp::Equal {
                     old_index,
@@ -231,15 +232,13 @@ where
                             log::warn!("Item {} was not found in the iterator items", new);
                             continue;
                         };
-                        let Some((set_index, mut state)) = take_from_vec(&mut self.items, old)
-                        else {
+                        let Some((_, mut state)) = take_from_vec(&mut self.items, old) else {
                             log::warn!("Item {} was not found in the rendered items", old);
                             continue;
                         };
-                        let (_, child) = (make_child)(new, item);
+                        let (set_index, child) = (make_child)(new, item);
                         child.rebuild(&mut state);
                         prev = Some(new);
-                        set_index(new);
                         new_items.push(Some((set_index, state)));
                     }
                 }

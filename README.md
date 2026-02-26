@@ -98,7 +98,6 @@ pub struct HUDRoot {
 
 ## Missing
 
-- [ ] Resolve warnings for ForEnumerate
 - [ ] Redo <Show /> Children
 - [ ] Optional props
 - [ ] Themes & Override
