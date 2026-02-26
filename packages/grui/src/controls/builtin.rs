@@ -1,4 +1,6 @@
-use super::{children::ChildrenGatherer, props::PropsGatherer, signals::SignalsGatherer};
+use super::{
+    any::AnyState, children::ChildrenGatherer, props::PropsGatherer, signals::SignalsGatherer,
+};
 use crate::{
     core::render::{Mountable, Render},
     godot::ty::GDType,
@@ -31,7 +33,7 @@ where
     Sg: HList + SignalsGatherer,
     Ch: HList + ChildrenGatherer,
 {
-    type State = StateGD<Ch::State>;
+    type State = StateGD;
 
     fn build(self) -> Self::State {
         let mut gd = self.ty.create_instance();
@@ -40,7 +42,7 @@ where
         for (signal, method) in &signals {
             gd.connect(signal, method);
         }
-        let mut children = self.children.build();
+        let mut children = self.children.gather().build();
         children.mount(&gd);
         StateGD {
             node: gd,
@@ -50,7 +52,7 @@ where
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        self.children.rebuild(&mut state.children);
+        self.children.gather().rebuild(&mut state.children);
     }
 
     fn to_json(self) -> String {
@@ -86,18 +88,22 @@ where
     }
 }
 
-pub struct StateGD<Ch> {
+pub struct StateGD {
     node: Gd<Control>,
+    #[allow(dead_code)]
     props: Vec<RenderEffect<()>>,
-    children: Ch,
+    children: Vec<AnyState>,
 }
 
-impl<Ch> Mountable for StateGD<Ch> {
+impl Mountable for StateGD {
     fn mount(&mut self, parent: &Gd<Control>) {
         parent.clone().add_child(&self.node);
     }
 
     fn unmount(&mut self) {
         self.node.queue_free();
+        for child in &mut self.children {
+            child.unmount();
+        }
     }
 }

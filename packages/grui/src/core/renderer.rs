@@ -2,37 +2,30 @@ use super::{
     reactive::GodotExecutor,
     render::{Mountable, Render},
 };
-use crate::controls::IntoControl;
+use crate::controls::{any::AnyState, IntoControl};
 use any_spawner::Executor;
 use godot::{classes::Control, meta::AsArg, obj::Gd};
 use reactive_graph::owner::Owner;
 
-pub struct Renderer<M: Mountable> {
-    #[allow(dead_code)] // FIXME: remove later
-    mounted: M,
+pub struct Renderer {
+    mounted: AnyState,
     #[allow(dead_code)] // FIXME: remove later
     owner: Owner,
 }
 
-impl<M> Drop for Renderer<M>
-where
-    M: Mountable,
-{
+impl Drop for Renderer {
     fn drop(&mut self) {
         self.mounted.unmount();
     }
 }
 
-impl<M> Renderer<M>
-where
-    M: Mountable,
-{
+impl Renderer {
     pub fn mount<N, P, C, T>(parent: N, component: C, props: P) -> Self
     where
         N: AsArg<Gd<Control>>,
         C: FnOnce(P) -> T,
-        T: IntoControl,
-        T: Render<State = M>,
+        T: IntoControl + 'static,
+        T: Render,
     {
         let _ = Executor::init_custom_executor(GodotExecutor {});
 
@@ -46,7 +39,10 @@ where
             mountable
         });
 
-        Renderer { mounted, owner }
+        Renderer {
+            mounted: AnyState::new::<T, T::State>(mounted),
+            owner,
+        }
     }
 }
 

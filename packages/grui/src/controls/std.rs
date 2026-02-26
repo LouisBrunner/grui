@@ -1,15 +1,18 @@
+use super::IntoControl;
 use crate::core::render::{Mountable, Render};
 use godot::{classes::Control, obj::Gd};
 
 impl<T: Render> Render for Vec<T> {
-    type State = StateVec<T::State>;
+    type State = Vec<T::State>;
 
     fn build(self) -> Self::State {
-        StateVec(self.into_iter().map(|child| child.build()).collect())
+        self.into_iter()
+            .map(|child| child.build())
+            .collect::<Vec<_>>()
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        for (child, state) in self.into_iter().zip(state.0.iter_mut()) {
+        for (child, state) in self.into_iter().zip(state.iter_mut()) {
             child.rebuild(state);
         }
     }
@@ -20,36 +23,34 @@ impl<T: Render> Render for Vec<T> {
     }
 }
 
-pub struct StateVec<T: Mountable>(pub Vec<T>);
-
-impl<T: Mountable> Mountable for StateVec<T> {
+impl<T: Mountable> Mountable for Vec<T> {
     fn mount(&mut self, parent: &Gd<Control>) {
-        for gd in &mut self.0 {
+        for gd in self {
             gd.mount(parent);
         }
     }
 
     fn unmount(&mut self) {
-        for gd in &mut self.0 {
+        for gd in self {
             gd.unmount();
         }
     }
 }
 
-// pub trait CollectControl {
-//     type Control: IntoControl;
+pub trait CollectControl {
+    type Control: IntoControl;
 
-//     fn collect_control(self) -> Vec<Self::Control>;
-// }
+    fn collect_control(self) -> Vec<Self::Control>;
+}
 
-// impl<It, V> CollectControl for It
-// where
-//     It: IntoIterator<Item = V>,
-//     V: IntoControl,
-// {
-//     type Control = V;
+impl<It, V> CollectControl for It
+where
+    It: IntoIterator<Item = V>,
+    V: IntoControl,
+{
+    type Control = V;
 
-//     fn collect_control(self) -> Vec<Self::Control> {
-//         self.into_iter().collect()
-//     }
-// }
+    fn collect_control(self) -> Vec<Self::Control> {
+        self.into_iter().collect()
+    }
+}

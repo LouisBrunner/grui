@@ -9,12 +9,12 @@ pub(crate) mod signals;
 mod std;
 
 use crate::core::render::Render;
-// pub use any::{AnyControl, IntoAny};
+pub use any::IntoAny;
 // pub(crate) use builtin::Builtin;
-// pub use fragment::fragment;
-// pub use functions::*;
+pub use fragment::fragment;
+pub use functions::*;
 // pub use owned::OwnedControl;
-// pub use std::CollectControl;
+pub use std::CollectControl;
 
 pub trait IntoControl: Sized + Render {
     fn into_control(self) -> Self;

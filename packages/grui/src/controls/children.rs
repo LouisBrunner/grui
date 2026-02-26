@@ -1,23 +1,17 @@
+use super::any::{AnyControl, IntoAny};
 use crate::core::render::Render;
 use frunk::{HCons, HNil};
 
-pub trait ChildrenGatherer: Render {
+pub trait ChildrenGatherer {
+    fn gather(self) -> Vec<AnyControl>;
     fn gather_json(self) -> Vec<String>;
 }
 
-impl Render for HNil {
-    type State = ();
-
-    fn build(self) -> Self::State {}
-
-    fn rebuild(self, state: &mut Self::State) {}
-
-    fn to_json(self) -> String {
-        todo!()
-    }
-}
-
 impl ChildrenGatherer for HNil {
+    fn gather(self) -> Vec<AnyControl> {
+        Vec::new()
+    }
+
     fn gather_json(self) -> Vec<String> {
         Vec::new()
     }
@@ -25,14 +19,14 @@ impl ChildrenGatherer for HNil {
 
 impl<Head, Tail> ChildrenGatherer for HCons<Head, Tail>
 where
-    Head: Render,
+    Head: Render + 'static,
     Tail: ChildrenGatherer,
 {
-    // fn build(self) -> Vec<AnyState> {
-    //     let mut children = self.tail.build();
-    //     children.extend(self.head.into_any().build());
-    //     children
-    // }
+    fn gather(self) -> Vec<AnyControl> {
+        let mut children = self.tail.gather();
+        children.push(self.head.into_any());
+        children
+    }
 
     fn gather_json(self) -> Vec<String> {
         let mut vec = self.tail.gather_json();

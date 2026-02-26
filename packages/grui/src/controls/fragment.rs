@@ -1,5 +1,5 @@
-use super::children::ChildrenGatherer;
-use crate::core::{render::Render, IntoRender};
+use super::{any::AnyState, children::ChildrenGatherer};
+use crate::core::render::{IntoRender, Render};
 use frunk::{hlist::HList, HCons, HNil};
 
 pub struct Fragment<Ch> {
@@ -14,14 +14,14 @@ impl<Ch> Render for Fragment<Ch>
 where
     Ch: HList + ChildrenGatherer,
 {
-    type State = Ch::State;
+    type State = Vec<AnyState>;
 
     fn build(self) -> Self::State {
-        self.children.build()
+        self.children.gather().build()
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        self.children.rebuild(state);
+        self.children.gather().rebuild(state);
     }
 
     fn to_json(self) -> String {

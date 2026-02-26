@@ -62,7 +62,13 @@ impl Render for AnyControl {
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        (self.rebuild)(self.value, state)
+        if self.type_id == state.type_id {
+            (self.rebuild)(self.value, state)
+        } else {
+            let new = self.build();
+            state.unmount();
+            *state = new;
+        }
     }
 
     fn to_json(self) -> String {
@@ -75,6 +81,36 @@ pub struct AnyState {
     state: Erased,
     mount: fn(&mut Erased, parent: &Gd<Control>),
     unmount: fn(&mut Erased),
+}
+
+impl AnyState {
+    pub fn new<T, S>(state: T::State) -> Self
+    where
+        T: Render + 'static,
+    {
+        fn mount_any<T>(state: &mut Erased, parent: &Gd<Control>)
+        where
+            T: Render,
+            T::State: 'static,
+        {
+            state.get_mut::<T::State>().mount(parent)
+        }
+
+        fn unmount_any<T>(state: &mut Erased)
+        where
+            T: Render,
+            T::State: 'static,
+        {
+            state.get_mut::<T::State>().unmount();
+        }
+
+        AnyState {
+            type_id: TypeId::of::<T>(),
+            state: Erased::new(state),
+            mount: mount_any::<T>,
+            unmount: unmount_any::<T>,
+        }
+    }
 }
 
 impl Mountable for AnyState {
@@ -96,30 +132,8 @@ where
     T: Render + 'static,
 {
     fn into_any(self) -> AnyControl {
-        fn mount_any<T>(state: &mut Erased, parent: &Gd<Control>)
-        where
-            T: Render,
-            T::State: 'static,
-        {
-            state.get_mut::<T::State>().mount(parent)
-        }
-
-        fn unmount_any<T>(state: &mut Erased)
-        where
-            T: Render,
-            T::State: 'static,
-        {
-            state.get_mut::<T::State>().unmount();
-        }
-
         fn build<T: Render + 'static>(value: Erased) -> AnyState {
-            let state = Erased::new(value.into_inner::<T>().build());
-            AnyState {
-                type_id: TypeId::of::<T>(),
-                state,
-                mount: mount_any::<T>,
-                unmount: unmount_any::<T>,
-            }
+            AnyState::new::<T, T::State>(value.into_inner::<T>().build())
         }
 
         fn rebuild<T: Render + 'static>(value: Erased, state: &mut AnyState) {
