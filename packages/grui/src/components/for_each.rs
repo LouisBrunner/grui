@@ -14,13 +14,13 @@ use std::hash::Hash;
 #[component]
 pub fn For<EF, E, KF, K, CF, C, T>(each: EF, key: KF, children: CF) -> impl IntoControl
 where
-    EF: Fn() -> E,
+    EF: Fn() -> E + 'static,
     E: IntoIterator<Item = T>,
-    KF: Fn(&T) -> K + Clone,
-    K: Eq + Hash,
-    CF: Fn(T) -> C + Clone,
-    C: Render,
-    T: Send,
+    KF: Fn(&T) -> K + Clone + 'static,
+    K: Eq + Hash + 'static,
+    CF: Fn(T) -> C + Clone + 'static,
+    C: Render + 'static,
+    T: Send + 'static,
 {
     let parent = Owner::current().expect("no reactive owner");
     let children = move |_, child| {
@@ -34,13 +34,13 @@ where
 #[component]
 pub fn ForEnumerate<EF, E, KF, K, CF, C, T>(each: EF, key: KF, children: CF) -> impl IntoControl
 where
-    EF: Fn() -> E,
+    EF: Fn() -> E + 'static,
     E: IntoIterator<Item = T>,
-    KF: Fn(&T) -> K + Clone,
-    K: Eq + Hash,
-    CF: Fn(ReadSignal<usize>, T) -> C + Clone,
-    C: Render,
-    T: Send,
+    KF: Fn(&T) -> K + Clone + 'static,
+    K: Eq + Hash + 'static,
+    CF: Fn(ReadSignal<usize>, T) -> C + Clone + 'static,
+    C: Render + 'static,
+    T: Send + 'static,
 {
     let parent = Owner::current().expect("no reactive owner");
     let children = move |index, child| {

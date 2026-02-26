@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 pub trait SignalsGatherer {
     fn gather_signals(self) -> HashMap<String, Callable>;
-    fn gather_json(self) -> Vec<String>;
+    fn gather_json(&self) -> Vec<String>;
 }
 
 impl SignalsGatherer for HNil {
@@ -13,7 +13,7 @@ impl SignalsGatherer for HNil {
         HashMap::new()
     }
 
-    fn gather_json(self) -> Vec<String> {
+    fn gather_json(&self) -> Vec<String> {
         Vec::new()
     }
 }
@@ -28,7 +28,7 @@ where
         map
     }
 
-    fn gather_json(self) -> Vec<String> {
+    fn gather_json(&self) -> Vec<String> {
         let mut vec = self.tail.gather_json();
         vec.push(self.head.0.to_string());
         vec

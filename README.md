@@ -102,9 +102,13 @@ pub struct HUDRoot {
 - [ ] Caching for `<For />` / `<ForEnumerate />`
 - [ ] Themes & Override
 - [ ] Forms
-- [ ] Statically typed props/signals
-- [ ] Preview in Godot Editor
+- [ ] Connect to external Godot signals
+- [ ] TestRenderer + allow changes
 - [ ] Better fallback macros for invalid syntax
+- [ ] Allow root class to change props
+- [ ] Statically typed props/signals
+- [ ] Hydration
+- [ ] Preview in Godot Editor
 
 ## Acknowledgments
 

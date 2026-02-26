@@ -25,6 +25,12 @@ impl Erased {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn get_ref<T: 'static>(&self) -> &T {
+        check(&self.type_id, &std::any::TypeId::of::<T>());
+        unsafe { self.value.as_ref().unwrap().get_ref::<T>() }
+    }
+
     pub fn get_mut<T: 'static>(&mut self) -> &mut T {
         check(&self.type_id, &std::any::TypeId::of::<T>());
         unsafe { self.value.as_mut().unwrap().get_mut::<T>() }
@@ -63,7 +69,8 @@ impl Render for AnyControl {
         if self.type_id == state.type_id {
             (self.rebuild)(self.value, state)
         } else {
-            let new = self.build();
+            let mut new = self.build();
+            state.mount_after(&mut new);
             state.unmount();
             *state = new;
         }

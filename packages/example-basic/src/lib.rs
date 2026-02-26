@@ -64,15 +64,15 @@ fn Menu(title: String) -> impl IntoControl {
               text=move || format!("Clicks: {}", count.get()) />
             // conditions
             {move || if count.get() > 3 {
-              control!{ <label text="STOP!" /> }.into_any()
+              control!{ <label text="[SLOW] STOP!" /> }.into_any()
             } else {
-              control!{ <button text="Keep pressing!" /> }.into_any()
+              control!{ <button text="[SLOW] Keep pressing!" /> }.into_any()
             }}
             <Show
               when=move || {count.get() > 3}
-              fallback=|| control!{ <button text="Keep pressing!" /> }
+              fallback=|| control!{ <button text="[FAST] Keep pressing!" /> }
             >
-                <label text="STOP!" />
+                <label text="[FAST] STOP!" />
             </Show>
             // custom component usage
             <MenuButton label="Resume".into() on_pressed=resume />

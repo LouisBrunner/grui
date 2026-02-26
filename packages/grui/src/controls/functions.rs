@@ -1,6 +1,7 @@
 use super::IntoControl;
-use crate::core::render::Render;
+use crate::core::render::{MountPlace, Mountable, Render};
 use godot::builtin::{Callable, Variant};
+use reactive_graph::effect::RenderEffect;
 use std::fmt::Debug;
 
 pub trait CompatibleFn: 'static + FnMut(&[&Variant]) -> () {}
@@ -37,20 +38,51 @@ impl Debug for SignalCallable {
 
 impl<T, C> Render for T
 where
-    T: FnOnce() -> C,
+    T: FnMut() -> C + 'static,
     C: IntoControl,
+    C::State: 'static,
 {
-    type State = C::State;
+    type State = RenderEffect<C::State>;
 
-    fn build(self) -> Self::State {
-        (self)().build()
+    fn build(mut self) -> Self::State {
+        RenderEffect::new(move |prev| {
+            let value = (self)();
+            if let Some(mut state) = prev {
+                value.rebuild(&mut state);
+                state
+            } else {
+                value.build()
+            }
+        })
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        (self)().rebuild(state);
+        let new = self.build();
+        let mut old = std::mem::replace(state, new);
+        old.mount_after(state);
+        old.unmount();
     }
 
-    fn to_json(self) -> String {
+    fn to_json(mut self) -> String {
         (self)().to_json()
+    }
+}
+
+impl<T> Mountable for RenderEffect<T>
+where
+    T: Mountable,
+{
+    fn mount(&mut self, place: MountPlace) {
+        self.with_value_mut(|state| {
+            state.mount(place);
+        });
+    }
+
+    fn mount_after(&mut self, sibling: &mut dyn Mountable) {
+        self.with_value_mut(|value| value.mount_after(sibling));
+    }
+
+    fn unmount(&mut self) {
+        self.with_value_mut(|state| state.unmount());
     }
 }

@@ -36,8 +36,14 @@ where
     type State = StateGD;
 
     fn build(self) -> Self::State {
-        log::trace!("instancing {}", self.ty);
         let mut gd = self.ty.create_instance();
+        log::trace!(
+            "instancing {} ({:?} / {:?}) = {}",
+            self.ty,
+            self.props.gather_json(),
+            self.signals.gather_json(),
+            get_id_for_gd(&gd)
+        );
         let props = self.props.attach(gd.clone());
         let signals = self.signals.gather_signals();
         for (signal, method) in &signals {
@@ -53,6 +59,13 @@ where
     }
 
     fn rebuild(self, state: &mut Self::State) {
+        log::trace!(
+            "rebuilding {} ({:?} / {:?}) = {}",
+            self.ty,
+            self.props.gather_json(),
+            self.signals.gather_json(),
+            get_id_for_gd(&state.node)
+        );
         self.children.gather().rebuild(&mut state.children);
     }
 
@@ -100,32 +113,43 @@ impl Mountable for StateGD {
     fn mount(&mut self, place: MountPlace) {
         match place {
             MountPlace::AppendToParent(mut parent) => {
+                log::trace!(
+                    "mounting {} to parent {}",
+                    get_id_for_gd(&self.node),
+                    get_id_for_gd(&parent)
+                );
                 parent.add_child(&self.node);
             }
             MountPlace::AfterSibling(mut sibling) => {
+                log::trace!("mounting {} after sibling", get_id_for_gd(&self.node));
                 sibling.add_sibling(&self.node);
             }
         }
     }
 
     fn mount_after(&mut self, sibling: &mut dyn Mountable) {
+        log::trace!("mounting {} after sibling", get_id_for_gd(&self.node));
         sibling.mount(MountPlace::AfterSibling(self.node.clone()));
     }
 
-    // FIXME: needed?
-    // MountRelative::Before => {
-    //     let index = sibling.clone().get_index();
-    //     sibling.add_sibling(&self.node);
-    //     let Some(mut parent) = sibling.get_parent() else {
-    //         return; // FIXME: !!!
-    //     };
-    //     parent.move_child(&self.node, index);
-    // }
-
     fn unmount(&mut self) {
+        log::trace!("unmounting {}", get_id_for_gd(&self.node));
         self.node.queue_free();
         for child in &mut self.children {
             child.unmount();
         }
+    }
+}
+
+pub(crate) fn get_id_for_gd(node: &Gd<Control>) -> String {
+    let mut instance_id = "unknown".to_string();
+    if node.is_instance_valid() {
+        instance_id = node.instance_id().to_string();
+    }
+    let prefix = format!("{}#{}", node.get_class(), instance_id);
+    if !node.get_name().is_empty() {
+        format!("{}+{}", prefix, node.get_name())
+    } else {
+        prefix
     }
 }
