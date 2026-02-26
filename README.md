@@ -98,14 +98,14 @@ pub struct HUDRoot {
 
 ## Missing
 
-- [ ] Reactive For/Show
-- [ ] Caching for `<For />` / `<ForEnumerate />`
+- [ ] Resolve warnings for ForEnumerate
+- [ ] Redo <Show /> Children
+- [ ] Optional props
 - [ ] Themes & Override
 - [ ] Forms
-- [ ] Connect to external Godot signals
+- [ ] Connect to external Godot signals / Allow root class to change props
 - [ ] TestRenderer + allow changes
 - [ ] Better fallback macros for invalid syntax
-- [ ] Allow root class to change props
 - [ ] Statically typed props/signals
 - [ ] Hydration
 - [ ] Preview in Godot Editor

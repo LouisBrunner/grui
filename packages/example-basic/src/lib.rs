@@ -64,9 +64,14 @@ fn Menu(title: String) -> impl IntoControl {
               text=move || format!("Clicks: {}", count.get()) />
             // conditions
             {move || if count.get() > 3 {
-              control!{ <label text="[SLOW] STOP!" /> }.into_any()
+              control!{ <label text="[SLOW1] STOP!" /> }.into_any()
             } else {
-              control!{ <button text="[SLOW] Keep pressing!" /> }.into_any()
+              control!{ <button text="[SLOW1] Keep pressing!" /> }.into_any()
+            }}
+            {move || if count.get() > 3 {
+              control!{ <label text="[SLOW2] STOP!" /> }.into_any()
+            } else {
+              control!{ <label text="[SLOW2] Keep pressing!" /> }.into_any()
             }}
             <Show
               when=move || {count.get() > 3}

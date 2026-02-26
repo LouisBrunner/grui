@@ -111,33 +111,58 @@ pub struct StateGD {
 
 impl Mountable for StateGD {
     fn mount(&mut self, place: MountPlace) {
+        self.node.mount(place);
+    }
+
+    fn mount_after(&mut self, sibling: &mut dyn Mountable) {
+        self.node.mount_after(sibling);
+    }
+
+    fn unmount(&mut self) {
+        self.node.unmount();
+        for child in &mut self.children {
+            child.unmount();
+        }
+    }
+}
+
+impl Mountable for Gd<Control> {
+    fn mount(&mut self, place: MountPlace) {
         match place {
             MountPlace::AppendToParent(mut parent) => {
                 log::trace!(
                     "mounting {} to parent {}",
-                    get_id_for_gd(&self.node),
+                    get_id_for_gd(self),
                     get_id_for_gd(&parent)
                 );
-                parent.add_child(&self.node);
+                parent.add_child(&self.clone());
             }
             MountPlace::AfterSibling(mut sibling) => {
-                log::trace!("mounting {} after sibling", get_id_for_gd(&self.node));
-                sibling.add_sibling(&self.node);
+                log::trace!(
+                    "mounting {} after sibling {}",
+                    get_id_for_gd(self),
+                    get_id_for_gd(&sibling)
+                );
+                if sibling.get_parent().is_none() {
+                    log::error!(
+                        "Cannot mount {} after sibling {} without parent",
+                        get_id_for_gd(self),
+                        get_id_for_gd(&sibling)
+                    );
+                }
+                sibling.add_sibling(&self.clone());
             }
         }
     }
 
     fn mount_after(&mut self, sibling: &mut dyn Mountable) {
-        log::trace!("mounting {} after sibling", get_id_for_gd(&self.node));
-        sibling.mount(MountPlace::AfterSibling(self.node.clone()));
+        log::trace!("mounting after sibling {}", get_id_for_gd(self));
+        sibling.mount(MountPlace::AfterSibling(self.clone()));
     }
 
     fn unmount(&mut self) {
-        log::trace!("unmounting {}", get_id_for_gd(&self.node));
-        self.node.queue_free();
-        for child in &mut self.children {
-            child.unmount();
-        }
+        log::trace!("unmounting {}", get_id_for_gd(self));
+        self.queue_free();
     }
 }
 
