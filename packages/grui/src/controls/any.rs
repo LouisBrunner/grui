@@ -1,8 +1,6 @@
-use std::any::TypeId;
-
-use crate::core::render::{Mountable, Render};
+use crate::core::render::{MountPlace, Mountable, Render};
 use erased::ErasedBox;
-use godot::{classes::Control, obj::Gd};
+use std::any::TypeId;
 
 fn check(id_1: &std::any::TypeId, id_2: &std::any::TypeId) {
     if id_1 != id_2 {
@@ -79,7 +77,8 @@ impl Render for AnyControl {
 pub struct AnyState {
     type_id: TypeId,
     state: Erased,
-    mount: fn(&mut Erased, parent: &Gd<Control>),
+    mount: fn(&mut Erased, place: MountPlace),
+    mount_after: fn(&mut Erased, &mut dyn Mountable),
     unmount: fn(&mut Erased),
 }
 
@@ -88,12 +87,20 @@ impl AnyState {
     where
         T: Render + 'static,
     {
-        fn mount_any<T>(state: &mut Erased, parent: &Gd<Control>)
+        fn mount_any<T>(state: &mut Erased, place: MountPlace)
         where
             T: Render,
             T::State: 'static,
         {
-            state.get_mut::<T::State>().mount(parent)
+            state.get_mut::<T::State>().mount(place)
+        }
+
+        fn mount_after_any<T>(state: &mut Erased, sibling: &mut dyn Mountable)
+        where
+            T: Render,
+            T::State: 'static,
+        {
+            state.get_mut::<T::State>().mount_after(sibling);
         }
 
         fn unmount_any<T>(state: &mut Erased)
@@ -108,14 +115,19 @@ impl AnyState {
             type_id: TypeId::of::<T>(),
             state: Erased::new(state),
             mount: mount_any::<T>,
+            mount_after: mount_after_any::<T>,
             unmount: unmount_any::<T>,
         }
     }
 }
 
 impl Mountable for AnyState {
-    fn mount(&mut self, parent: &Gd<Control>) {
-        (self.mount)(&mut self.state, parent);
+    fn mount(&mut self, place: MountPlace) {
+        (self.mount)(&mut self.state, place);
+    }
+
+    fn mount_after(&mut self, sibling: &mut dyn Mountable) {
+        (self.mount_after)(&mut self.state, sibling);
     }
 
     fn unmount(&mut self) {

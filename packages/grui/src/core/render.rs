@@ -24,8 +24,16 @@ pub trait Render: Sized {
     fn to_json(self) -> String;
 }
 
+#[derive(Clone)]
+pub enum MountPlace {
+    AppendToParent(Gd<Control>),
+    AfterSibling(Gd<Control>),
+}
+
 pub trait Mountable {
-    fn mount(&mut self, parent: &Gd<Control>);
+    fn mount(&mut self, place: MountPlace);
+
+    fn mount_after(&mut self, sibling: &mut dyn Mountable);
 
     fn unmount(&mut self);
 }

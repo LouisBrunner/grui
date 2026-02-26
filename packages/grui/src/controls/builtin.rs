@@ -2,7 +2,7 @@ use super::{
     any::AnyState, children::ChildrenGatherer, props::PropsGatherer, signals::SignalsGatherer,
 };
 use crate::{
-    core::render::{Mountable, Render},
+    core::render::{MountPlace, Mountable, Render},
     godot::ty::GDType,
 };
 use frunk::hlist::HList;
@@ -36,6 +36,7 @@ where
     type State = StateGD;
 
     fn build(self) -> Self::State {
+        log::trace!("instancing {}", self.ty);
         let mut gd = self.ty.create_instance();
         let props = self.props.attach(gd.clone());
         let signals = self.signals.gather_signals();
@@ -43,7 +44,7 @@ where
             gd.connect(signal, method);
         }
         let mut children = self.children.gather().build();
-        children.mount(&gd);
+        children.mount(MountPlace::AppendToParent(gd.clone()));
         StateGD {
             node: gd,
             props,
@@ -96,9 +97,30 @@ pub struct StateGD {
 }
 
 impl Mountable for StateGD {
-    fn mount(&mut self, parent: &Gd<Control>) {
-        parent.clone().add_child(&self.node);
+    fn mount(&mut self, place: MountPlace) {
+        match place {
+            MountPlace::AppendToParent(mut parent) => {
+                parent.add_child(&self.node);
+            }
+            MountPlace::AfterSibling(mut sibling) => {
+                sibling.add_sibling(&self.node);
+            }
+        }
     }
+
+    fn mount_after(&mut self, sibling: &mut dyn Mountable) {
+        sibling.mount(MountPlace::AfterSibling(self.node.clone()));
+    }
+
+    // FIXME: needed?
+    // MountRelative::Before => {
+    //     let index = sibling.clone().get_index();
+    //     sibling.add_sibling(&self.node);
+    //     let Some(mut parent) = sibling.get_parent() else {
+    //         return; // FIXME: !!!
+    //     };
+    //     parent.move_child(&self.node, index);
+    // }
 
     fn unmount(&mut self) {
         self.node.queue_free();

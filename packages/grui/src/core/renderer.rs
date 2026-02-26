@@ -2,7 +2,10 @@ use super::{
     reactive::GodotExecutor,
     render::{Mountable, Render},
 };
-use crate::controls::{any::AnyState, IntoControl};
+use crate::{
+    controls::{any::AnyState, IntoControl},
+    core::render::MountPlace,
+};
 use any_spawner::Executor;
 use godot::{classes::Control, meta::AsArg, obj::Gd};
 use reactive_graph::owner::Owner;
@@ -35,7 +38,7 @@ impl Renderer {
         let mounted = owner.with(move || {
             let control = component(props).into_control();
             let mut mountable = control.build();
-            mountable.mount(&parent);
+            mountable.mount(MountPlace::AppendToParent(parent));
             mountable
         });
 

@@ -1,6 +1,5 @@
 use super::IntoControl;
-use crate::core::render::{Mountable, Render};
-use godot::{classes::Control, obj::Gd};
+use crate::core::render::{MountPlace, Mountable, Render};
 
 impl<T: Render> Render for Vec<T> {
     type State = Vec<T::State>;
@@ -24,9 +23,24 @@ impl<T: Render> Render for Vec<T> {
 }
 
 impl<T: Mountable> Mountable for Vec<T> {
-    fn mount(&mut self, parent: &Gd<Control>) {
-        for gd in self {
-            gd.mount(parent);
+    fn mount(&mut self, place: MountPlace) {
+        match &place {
+            MountPlace::AppendToParent(_) => {
+                for gd in self {
+                    gd.mount(place.clone());
+                }
+            }
+            MountPlace::AfterSibling(_) => {
+                for gd in self.into_iter().rev() {
+                    gd.mount(place.clone());
+                }
+            }
+        }
+    }
+
+    fn mount_after(&mut self, sibling: &mut dyn Mountable) {
+        for gd in self.into_iter().rev() {
+            gd.mount_after(sibling);
         }
     }
 

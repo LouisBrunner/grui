@@ -1,8 +1,7 @@
 use crate::{
     controls::{owned::OwnedControl, IntoControl},
-    core::render::{Mountable, Render},
+    core::render::{MountPlace, Mountable, Render},
 };
-use godot::{classes::Control, obj::Gd};
 use grui_macros::component;
 use indexmap::IndexSet;
 use reactive_graph::{
@@ -116,6 +115,14 @@ where
         }
 
         // TODO: apply diff of hashed_items -> new_hashed_items to new_items
+        for (_, item) in rendered_items.iter_mut() {
+            item.unmount();
+        }
+        rendered_items.clear();
+        for (index, item) in items.into_iter().enumerate() {
+            let (set_index, view) = (self.children)(index, item);
+            rendered_items.push((set_index, view.build()));
+        }
 
         *hashed_items = new_hashed_items;
     }
@@ -168,9 +175,24 @@ where
     CIF: Fn(usize),
     M: Mountable,
 {
-    fn mount(&mut self, parent: &Gd<Control>) {
-        for (_, child) in self.rendered_items.iter_mut() {
-            child.mount(parent);
+    fn mount(&mut self, place: MountPlace) {
+        match &place {
+            MountPlace::AppendToParent(_) => {
+                for (_, item) in self.rendered_items.iter_mut() {
+                    item.mount(place.clone());
+                }
+            }
+            MountPlace::AfterSibling(_) => {
+                for (_, item) in self.rendered_items.iter_mut().rev() {
+                    item.mount(place.clone());
+                }
+            }
+        }
+    }
+
+    fn mount_after(&mut self, sibling: &mut dyn Mountable) {
+        for (_, item) in self.rendered_items.iter_mut().rev() {
+            item.mount_after(sibling);
         }
     }
 
