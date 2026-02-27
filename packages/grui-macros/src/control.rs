@@ -70,7 +70,6 @@ fn make_children(children: Vec<TokenStream>) -> Option<TokenStream> {
 
 fn add_children(mut builder: TokenStream, children: Vec<TokenStream>) -> TokenStream {
     for child in &children {
-        // FIXME: might need chunking
         builder = quote! { #builder.child( #child ) };
     }
     builder
@@ -117,8 +116,8 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
                         children_attribute = true;
                     }
                     let field_ident = attribute_to_ident(&key);
-                    let value = attribute_value(attr, true, false)?;
-                    fields.push(quote! { #field_ident: #value });
+                    let value = attribute_value(attr, true, key == "children")?;
+                    fields.push(quote! { #field_ident(#value) });
                 }
             },
             _ => {
@@ -152,16 +151,17 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
         if let Some(mut children_expr) = children_expr {
             if let Some(pattern) = pattern_tokens {
                 children_expr = quote! { |#pattern| #children_expr };
+            } else {
+                children_expr = quote! { || #children_expr };
             }
 
-            fields.push(quote! { children: #children_expr });
+            fields.push(quote! { children(#children_expr) });
         }
     }
 
     let props_literal = quote! {
-        #props_path {
-            #(#fields,)*
-        }
+        #props_path::builder()
+            #(.#fields)*.build()
     };
 
     Ok(quote! { #component_path(#props_literal) })
@@ -495,10 +495,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            MenuButton(MenuButtonProps {
-                label: "Resume",
-                on_pressed: { resume },
-            })
+            MenuButton(MenuButtonProps::builder().label("Resume").on_pressed({ resume }).build())
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -560,11 +557,11 @@ mod tests {
         let output = transform(input).expect("transform ok");
         let expected = quote! {
             For(
-              ForProps {
-                each: | | (1..=5),
-                key: |i| *i,
-                children: |i| ::grui::prelude::label().prop("text", move || format!("Item {}", i)).build(),
-              }
+              ForProps::builder()
+                .each(| | (1..=5))
+                .key(|i| *i)
+                .children(|i| ::grui::prelude::label().prop("text", move || format!("Item {}", i)).build())
+                .build()
             )
         };
         assert_eq!(pretty(output), pretty(expected));
@@ -616,9 +613,10 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            MyComp(MyCompProps {
-                children: ::grui::prelude::button().prop("text", move || "Click me").build(),
-            })
+            MyComp(MyCompProps::builder()
+                .children(|| ::grui::prelude::button().prop("text", move || "Click me").build())
+                .build()
+            )
         };
 
         assert_eq!(pretty(output), pretty(expected));

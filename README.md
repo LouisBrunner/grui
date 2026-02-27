@@ -98,11 +98,9 @@ pub struct HUDRoot {
 
 ## Missing
 
-- [ ] Redo <Show /> Children
-- [ ] Optional props
+- [ ] Connect to external Godot signals / Allow root class to change props
 - [ ] Themes & Override
 - [ ] Forms
-- [ ] Connect to external Godot signals / Allow root class to change props
 - [ ] TestRenderer + allow changes
 - [ ] Better fallback macros for invalid syntax
 - [ ] Statically typed props/signals

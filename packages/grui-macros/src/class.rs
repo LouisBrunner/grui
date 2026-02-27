@@ -68,7 +68,6 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
     let root = args.root;
     let base = args.base;
     let base_interface = format_ident!("I{}", base);
-    let root_props = format_ident!("{}Props", root);
 
     let fields = match item.fields {
         syn::Fields::Named(fields_named) => Ok(fields_named.named),
@@ -76,13 +75,13 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
         syn::Fields::Unit => Ok(Punctuated::new()),
     }?;
 
-    let fields_comp = fields
+    let props = fields
         .iter()
         .map(|field| {
             let ident = field.ident.as_ref().unwrap();
-            quote! { #ident: self.#ident.clone() }
+            quote! { #ident=self.#ident.clone() }
         })
-        .collect::<Punctuated<_, Token![,]>>();
+        .collect::<Vec<_>>();
 
     let gen = quote! {
       use godot::classes::#base_interface;
@@ -98,10 +97,7 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
       #[godot_api]
       impl #base_interface for #ident {
           fn ready(&mut self) {
-            let props = #root_props {
-              #fields_comp
-            };
-            self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), #root, props));
+            self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), ::grui::prelude::control!{ <#root #(#props)* /> }));
           }
       }
     };
@@ -145,11 +141,7 @@ mod tests {
           #[godot_api]
           impl IControl for MyStruct {
               fn ready(&mut self) {
-                let props = AppProps {
-                  field: self.field.clone(),
-                  abc: self.abc.clone(),
-                };
-                self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), App, props));
+                self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), ::grui::prelude::control! { <App field=self.field.clone() abc=self.abc.clone() /> }));
               }
           }
         };
@@ -177,8 +169,7 @@ mod tests {
             #[godot_api]
             impl IControl for Empty {
                 fn ready(&mut self) {
-                  let props = AppProps {  };
-                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), App, props));
+                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), ::grui::prelude::control! { <App /> }));
                 }
             }
         };
@@ -207,11 +198,7 @@ mod tests {
             #[godot_api]
             impl IButton for Foo {
                 fn ready(&mut self) {
-                  let props = MyCompProps {
-                    a: self.a.clone(),
-                    b: self.b.clone(),
-                  };
-                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), MyComp, props));
+                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), ::grui::prelude::control! { <MyComp a=self.a.clone() b=self.b.clone() /> }));
                 }
             }
         };

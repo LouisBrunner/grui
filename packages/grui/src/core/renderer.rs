@@ -23,12 +23,11 @@ impl Drop for Renderer {
 }
 
 impl Renderer {
-    pub fn mount<N, P, C, T>(parent: N, component: C, props: P) -> Self
+    pub fn mount<P, C>(parent: P, control: C) -> Self
     where
-        N: AsArg<Gd<Control>>,
-        C: FnOnce(P) -> T,
-        T: IntoControl + 'static,
-        T: Render,
+        P: AsArg<Gd<Control>>,
+        C: IntoControl + 'static,
+        C: Render,
     {
         let _ = Executor::init_custom_executor(GodotExecutor {});
 
@@ -36,14 +35,14 @@ impl Renderer {
 
         let owner = Owner::new();
         let mounted = owner.with(move || {
-            let control = component(props).into_control();
+            let control = control.into_control();
             let mut mountable = control.build();
             mountable.mount(MountPlace::AppendToParent(parent));
             mountable
         });
 
         Renderer {
-            mounted: AnyState::new::<T, T::State>(mounted),
+            mounted: AnyState::new::<C, C::State>(mounted),
             owner,
         }
     }

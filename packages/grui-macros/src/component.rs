@@ -1,7 +1,11 @@
 use convert_case::{Case, Casing};
+use from_attr::FromAttr;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{parse2, spanned::Spanned, Error, FnArg, Ident, ItemFn, Pat, PatIdent, Result, Type};
+use syn::{
+    parse2, spanned::Spanned, Error, FnArg, Ident, ImplGenerics, ItemFn, Pat, PatIdent, Result,
+    Type, TypeGenerics, WhereClause,
+};
 
 pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
     if !args.is_empty() {
@@ -11,17 +15,10 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
     let mut function = parse2::<ItemFn>(item)?;
 
     function.sig.ident = make_snake_case(&function.sig.ident);
-    let props_ident = format_ident!("{}Props", function.sig.ident);
+    let (impl_generics, ty_generics, where_clause) = function.sig.generics.split_for_impl();
+    let (props, props_ident, destructure) =
+        transform_props(&function, &impl_generics, &ty_generics, where_clause)?;
 
-    let (_, ty_generics, where_clause) = function.sig.generics.split_for_impl();
-
-    let (field_idents, field_types) = extract_fields(&function.sig)?;
-    let has_fields = !field_idents.is_empty();
-    let destructure: Option<TokenStream> = if has_fields {
-        Some(quote! { #props_ident { #( #field_idents, )* } })
-    } else {
-        None
-    };
     function.sig.inputs.clear();
     if let Some(destructure_ts) = &destructure {
         function
@@ -39,16 +36,8 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
             .push(syn::parse_quote! { _: #props_ident #ty_generics });
     }
 
-    let vis = function.vis.clone();
     let attrs = function.attrs.clone();
     function.attrs.clear();
-
-    let props = quote! {
-        #[derive(Debug)]
-        #vis struct #props_ident #ty_generics #where_clause {
-            #(pub #field_idents: #field_types,)*
-        }
-    };
 
     let output = quote! {
         #props
@@ -60,9 +49,79 @@ pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
     Ok(output)
 }
 
-fn extract_fields(sig: &syn::Signature) -> Result<(Vec<Ident>, Vec<Type>)> {
-    let mut idents = Vec::new();
-    let mut types = Vec::new();
+fn transform_props(
+    function: &ItemFn,
+    impl_generics: &ImplGenerics,
+    _ty_generics: &TypeGenerics,
+    where_clause: Option<&WhereClause>,
+) -> Result<(TokenStream, Ident, Option<TokenStream>)> {
+    let props_ident = format_ident!("{}Props", function.sig.ident);
+
+    let prop_list = extract_props(&function.sig)?;
+    let has_fields = !prop_list.is_empty();
+    let destructure: Option<TokenStream> = if has_fields {
+        let destructure_fields = prop_list
+            .iter()
+            .map(|prop| prop.ident.clone())
+            .collect::<Vec<_>>();
+
+        Some(quote! { #props_ident { #( #destructure_fields, )* } })
+    } else {
+        None
+    };
+
+    let prop_fields = prop_list
+        .iter()
+        .map(|prop| prop.get_field_type())
+        .collect::<Vec<_>>();
+
+    let vis = function.vis.clone();
+    let props = quote! {
+        #[derive(Debug, ::grui::internal::typed_builder::TypedBuilder)]
+        #[builder(crate_module_path=::grui::internal::typed_builder)]
+        #vis struct #props_ident #impl_generics #where_clause {
+            #(#prop_fields,)*
+        }
+    };
+
+    Ok((props, props_ident, destructure))
+}
+
+#[derive(Debug, Default, FromAttr)]
+#[attribute(idents = [prop])]
+struct PropAttributes {
+    optional: bool,
+    into: bool,
+}
+
+#[derive(Debug)]
+struct Prop {
+    ident: Ident,
+    ty: Type,
+    attrs: PropAttributes,
+}
+
+impl Prop {
+    fn get_field_type(&self) -> TokenStream {
+        let Prop { ident, ty, .. } = &self;
+        let field_type = if self.attrs.optional {
+            quote! { Option<#ty> }
+        } else {
+            quote! { #ty }
+        };
+        let mut builder_opts = vec![];
+        if self.attrs.into {
+            builder_opts.push(quote! { #[builder(setter(into))] });
+        }
+        if self.attrs.optional {
+            builder_opts.push(quote! { #[builder(default, setter(strip_option))] });
+        }
+        quote! { #(#builder_opts)* pub #ident: #field_type }
+    }
+}
+
+fn extract_props(sig: &syn::Signature) -> Result<Vec<Prop>> {
+    let mut props = Vec::new();
 
     for input in sig.inputs.iter() {
         match input {
@@ -76,8 +135,14 @@ fn extract_fields(sig: &syn::Signature) -> Result<(Vec<Ident>, Vec<Type>)> {
 
                 let ident = ident.clone();
                 let ty = (*pat_ty.ty).clone();
-                idents.push(ident);
-                types.push(ty);
+                props.push(Prop {
+                    ident,
+                    ty,
+                    attrs: PropAttributes::from_attributes(&pat_ty.attrs)
+                        .map_err(|err| err.value)?
+                        .map(|av| av.value)
+                        .unwrap_or_default(),
+                });
             }
             FnArg::Receiver(_) => {
                 return Err(Error::new(
@@ -88,7 +153,7 @@ fn extract_fields(sig: &syn::Signature) -> Result<(Vec<Ident>, Vec<Type>)> {
         }
     }
 
-    Ok((idents, types))
+    Ok(props)
 }
 
 fn make_snake_case(name: &Ident) -> Ident {
@@ -119,7 +184,8 @@ mod tests {
         };
 
         let expected = quote! {
-            #[derive(Debug)]
+            #[derive(Debug, ::grui::internal::typed_builder::TypedBuilder)]
+            #[builder(crate_module_path = ::grui::internal::typed_builder)]
             pub struct ButtonProps {
                 pub label: String,
                 pub disabled: bool,
@@ -152,7 +218,8 @@ mod tests {
         };
 
         let expected = quote! {
-            #[derive(Debug)]
+            #[derive(Debug, ::grui::internal::typed_builder::TypedBuilder)]
+            #[builder(crate_module_path = ::grui::internal::typed_builder)]
             struct MenuButtonProps {
                 pub label: String,
                 pub on_pressed: Callable,
@@ -183,7 +250,8 @@ mod tests {
         };
 
         let expected = quote! {
-            #[derive(Debug)]
+            #[derive(Debug, ::grui::internal::typed_builder::TypedBuilder)]
+            #[builder(crate_module_path = ::grui::internal::typed_builder)]
             struct SimpleButtonProps { }
 
             #[allow(non_snake_case)]
@@ -208,7 +276,8 @@ mod tests {
         };
 
         let expected = quote! {
-            #[derive(Debug)]
+            #[derive(Debug, ::grui::internal::typed_builder::TypedBuilder)]
+            #[builder(crate_module_path = ::grui::internal::typed_builder)]
             struct SimpleButtonProps<S> where S: Into<String> {
               pub label: S,
             }
@@ -231,7 +300,8 @@ mod tests {
         let input = quote! { fn foo(bar: i32, children: String) -> impl IntoControl { control! {<label max_lines_visible=bar text=children />} } };
         let output = transform(args, input).expect("ok");
         let expected = quote! {
-            #[derive(Debug)]
+            #[derive(Debug, ::grui::internal::typed_builder::TypedBuilder)]
+            #[builder(crate_module_path = ::grui::internal::typed_builder)]
             struct FooProps {
                 pub bar: i32,
                 pub children: String,

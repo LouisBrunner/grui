@@ -1,6 +1,30 @@
 use super::IntoControl;
 use crate::core::render::{MountPlace, Mountable, Render};
 
+impl Render for () {
+    type State = ();
+
+    fn build(self) -> Self::State {
+        ()
+    }
+
+    fn rebuild(self, state: &mut Self::State) {
+        *state = ();
+    }
+
+    fn to_json(self) -> String {
+        "null".to_string()
+    }
+}
+
+impl Mountable for () {
+    fn mount(&mut self, _place: MountPlace) {}
+
+    fn mount_after(&mut self, _sibling: &mut dyn Mountable) {}
+
+    fn unmount(&mut self) {}
+}
+
 impl<T: Render> Render for Vec<T> {
     type State = Vec<T::State>;
 

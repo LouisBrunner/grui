@@ -87,7 +87,7 @@ where
     CIF: Fn(usize),
     T: Send,
 {
-    type State = KeysState<K, CIF, C::State>;
+    type State = ForState<K, CIF, C::State>;
 
     fn build(self) -> Self::State {
         let items = self.each.into_iter();
@@ -99,7 +99,7 @@ where
             let (set_index, view) = (self.children)(index, item);
             rendered_items.push(Some((set_index, view.build())));
         }
-        KeysState {
+        ForState {
             placeholder: Control::new_alloc(),
             keys: hashed_items,
             items: rendered_items,
@@ -157,7 +157,7 @@ where
     }
 }
 
-struct KeysState<K, CIF, M>
+struct ForState<K, CIF, M>
 where
     K: Hash + Ord,
     CIF: Fn(usize),
@@ -168,7 +168,7 @@ where
     items: Vec<Option<(CIF, M)>>,
 }
 
-impl<K, CIF, M> Mountable for KeysState<K, CIF, M>
+impl<K, CIF, M> Mountable for ForState<K, CIF, M>
 where
     K: Hash + Ord,
     CIF: Fn(usize),
@@ -196,7 +196,7 @@ where
     }
 }
 
-impl<K, CIF, M> KeysState<K, CIF, M>
+impl<K, CIF, M> ForState<K, CIF, M>
 where
     K: Hash + Ord,
     CIF: Fn(usize),

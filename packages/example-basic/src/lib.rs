@@ -3,12 +3,12 @@ use grui::prelude::*;
 use std::fmt::Debug;
 
 #[component]
-fn MenuButton(label: String, on_pressed: SignalCallable) -> impl IntoControl {
+fn MenuButton(#[prop(into)] label: String, on_pressed: SignalCallable) -> impl IntoControl {
     control! { <button on:pressed=on_pressed text=label.clone() /> }
 }
 
 #[component]
-fn Menu(title: String) -> impl IntoControl {
+fn Menu(#[prop(into)] title: String) -> impl IntoControl {
     let (count, set_count) = signal(0);
 
     Effect::new(move || {
@@ -75,13 +75,18 @@ fn Menu(title: String) -> impl IntoControl {
             }}
             <Show
               when=move || {count.get() > 3}
-              fallback=|| control!{ <button text="[FAST] Keep pressing!" /> }
+              fallback=|| control!{ <button text="[FAST1] Keep pressing!" /> }
             >
-                <label text="[FAST] STOP!" />
+                <label text="[FAST1] STOP!" />
+            </Show>
+            <Show
+              when=move || {count.get() > 3}
+            >
+                <label text="[FAST2] STOP!" />
             </Show>
             // custom component usage
-            <MenuButton label="Resume".into() on_pressed=resume />
-            <MenuButton label="Quit".into() on_pressed=quit />
+            <MenuButton label="Resume" on_pressed=resume />
+            <MenuButton label="Quit" on_pressed=quit />
         </vboxcontainer>
     }
 }
@@ -97,7 +102,7 @@ fn Basic() -> impl IntoControl {
             <button on:pressed=handler text="Resume" />
             <button text="Save" />
             <button text="Load" />
-            <Menu title="Pause".into() />
+            <Menu title="Pause" />
         </vboxcontainer>
     }
 }
