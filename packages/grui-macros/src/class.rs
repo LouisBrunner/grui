@@ -97,7 +97,7 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
       #[godot_api]
       impl #base_interface for #ident {
           fn ready(&mut self) {
-            self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), ::grui::prelude::control!{ <#root #(#props)* /> }));
+            self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), || ::grui::prelude::control!{ <#root #(#props)* /> }));
           }
       }
     };
@@ -141,7 +141,7 @@ mod tests {
           #[godot_api]
           impl IControl for MyStruct {
               fn ready(&mut self) {
-                self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), ::grui::prelude::control! { <App field=self.field.clone() abc=self.abc.clone() /> }));
+                self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), || ::grui::prelude::control! { <App field=self.field.clone() abc=self.abc.clone() /> }));
               }
           }
         };
@@ -169,7 +169,7 @@ mod tests {
             #[godot_api]
             impl IControl for Empty {
                 fn ready(&mut self) {
-                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), ::grui::prelude::control! { <App /> }));
+                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), || ::grui::prelude::control! { <App /> }));
                 }
             }
         };
@@ -198,7 +198,7 @@ mod tests {
             #[godot_api]
             impl IButton for Foo {
                 fn ready(&mut self) {
-                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), ::grui::prelude::control! { <MyComp a=self.a.clone() b=self.b.clone() /> }));
+                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), || ::grui::prelude::control! { <MyComp a=self.a.clone() b=self.b.clone() /> }));
                 }
             }
         };

@@ -23,9 +23,10 @@ impl Drop for Renderer {
 }
 
 impl Renderer {
-    pub fn mount<P, C>(parent: P, control: C) -> Self
+    pub fn mount<P, FC, C>(parent: P, control: FC) -> Self
     where
         P: AsArg<Gd<Control>>,
+        FC: Fn() -> C,
         C: IntoControl + 'static,
         C: Render,
     {
@@ -35,7 +36,7 @@ impl Renderer {
 
         let owner = Owner::new();
         let mounted = owner.with(move || {
-            let control = control.into_control();
+            let control = control().into_control();
             let mut mountable = control.build();
             mountable.mount(MountPlace::AppendToParent(parent));
             mountable

@@ -1,16 +1,20 @@
-use super::IntoControl;
+use godot::{classes::Control, obj::NewAlloc};
+
+use super::{builtin::StateGD, IntoControl};
 use crate::core::render::{MountPlace, Mountable, Render};
 
 impl Render for () {
-    type State = ();
+    type State = StateGD;
 
     fn build(self) -> Self::State {
-        ()
+        StateGD {
+            node: Control::new_alloc(),
+            props: vec![],
+            children: vec![],
+        }
     }
 
-    fn rebuild(self, state: &mut Self::State) {
-        *state = ();
-    }
+    fn rebuild(self, _state: &mut Self::State) {}
 
     fn to_json(self) -> String {
         "null".to_string()

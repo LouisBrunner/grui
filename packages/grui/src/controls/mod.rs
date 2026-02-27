@@ -2,7 +2,7 @@ pub(crate) mod any;
 pub(crate) mod builtin;
 pub(crate) mod children;
 mod fragment;
-mod functions;
+pub(crate) mod functions;
 pub(crate) mod owned;
 pub(crate) mod props;
 pub(crate) mod signals;

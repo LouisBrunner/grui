@@ -103,10 +103,10 @@ where
 }
 
 pub struct StateGD {
-    node: Gd<Control>,
+    pub(super) node: Gd<Control>,
     #[allow(dead_code)]
-    props: Vec<RenderEffect<()>>,
-    children: Vec<AnyState>,
+    pub(super) props: Vec<RenderEffect<()>>,
+    pub(super) children: Vec<AnyState>,
 }
 
 impl Mountable for StateGD {

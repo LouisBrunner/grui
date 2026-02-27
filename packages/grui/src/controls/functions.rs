@@ -1,4 +1,7 @@
-use super::IntoControl;
+use super::{
+    any::{AnyControl, IntoAny},
+    IntoControl,
+};
 use crate::core::render::{MountPlace, Mountable, Render};
 use godot::builtin::{Callable, Variant};
 use reactive_graph::effect::RenderEffect;
@@ -84,5 +87,29 @@ where
 
     fn unmount(&mut self) {
         self.with_value_mut(|state| state.unmount());
+    }
+}
+
+pub struct ControlFn(Box<dyn Fn() -> AnyControl + 'static>);
+
+impl<F, C> From<F> for ControlFn
+where
+    F: Fn() -> C + 'static,
+    C: Render + 'static,
+{
+    fn from(value: F) -> Self {
+        Self(Box::new(move || value().into_any()))
+    }
+}
+
+impl ControlFn {
+    pub fn run(&self) -> AnyControl {
+        (self.0)()
+    }
+}
+
+impl Debug for ControlFn {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ControlFn")
     }
 }
