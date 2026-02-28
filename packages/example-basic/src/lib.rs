@@ -31,7 +31,7 @@ fn Menu(#[prop(into)] title: String) -> impl IntoControl {
               (1..=3).map(|i| {
                   let title = title.clone();
                   control! { <label text=format!("{} {}", title, i) /> }
-              }).collect::<Vec<_>>()
+              }).collect_control()
             }
             // dynamic iteration
             <hboxcontainer anchor_left=0.5 anchor_right=0.5>

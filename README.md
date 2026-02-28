@@ -18,15 +18,15 @@ The workspace contains two crates:
 use godot::prelude::*;
 use grui::prelude::*;
 
-// easily create custom component
+// easily create custom component (with automatic into conversion of prop)
 #[component]
-fn MenuButton(label: String, on_pressed: Callable) -> impl IntoControl {
-    control! { <button on:pressed=on_pressed text=label /> }
+fn MenuButton(#[prop(into)] label: String, on_pressed: Callable) -> impl IntoControl {
+    control! { <button on:pressed=on_pressed text=label.clone() /> }
 }
 
-// a top-level component is the same as any other
+// a top-level component is the same as any other (with optional prop)
 #[component]
-fn PauseMenu(title: String) -> impl IntoControl {
+fn PauseMenu(#[prop(optional) title: String) -> impl IntoControl {
     let (count, set_count) = signal(0);
 
     Effect::new(move || {
@@ -42,35 +42,36 @@ fn PauseMenu(title: String) -> impl IntoControl {
     });
 
     control! {
-        // built-in tags
-        <vboxcontainer>
+        // built-in tags with attributes
+        <vboxcontainer anchor_right=1.0 anchor_bottom=1.0>
             // static iteration
             {
               (1..=3).map(|i| {
-                  control! { <label text=format!("{} {}", title, i) /> }
-              }).collect::<Vec<_>>()
+                  control! { <label text=format!("{} {}", title.unwrap_or("test".to_string()), i) /> }
+              }).collect_control()
             }
-            // dynamic iteration
+            // dynamic iteration (different syntaxes)
             <For each=|| (0..count.get()) key=|i| *i let(i)>
                 <label text=format!("Tick {}", i) />
             </For>
             // event handling
             <button on:pressed=SignalCallable::new(move |_| {
-                godot_print!("Button pressed! (count: {})", count.get());
+                godot_print!("Button pressed!");
                 set_count.update(|c| *c += 1);
               })
               text=|| format!("Clicks: {}", count.get()) />
             // conditions
-            {move || if count.get() > 3 {
+            {move || if count.get() > 3 { // inefficient
               control!{ <label text="STOP!" /> }.into_any()
             } else {
               control!{ <button text="Keep pressing!" /> }.into_any()
             }}
-            <Show
+            <Show // performant!
               when=|| {count.get() > 3}
-              fallback=|| control!{ <button text="Keep pressing!" /> }
+              fallback=|| control!{ <button text="Keep pressing!" /> } // optional
             >
-                <label text="STOP!" />
+                // theme override
+                <label theme_override_font_sizes:font_size=30 text="STOP!" />
             </Show>
             // custom component usage
             <MenuButton label="Resume" on_pressed=resume />
@@ -98,6 +99,7 @@ pub struct HUDRoot {
 
 ## Missing
 
+- [ ] div equivalent
 - [ ] Forms
 - [ ] TestRenderer + allow changes
 - [ ] Better fallback macros for invalid syntax
