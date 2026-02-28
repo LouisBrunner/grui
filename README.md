@@ -100,10 +100,10 @@ pub struct HUDRoot {
 ## Missing
 
 - [ ] div equivalent
-- [ ] Forms
 - [ ] TestRenderer + allow changes
 - [ ] Better fallback macros for invalid syntax
 - [ ] Statically typed props/signals
+- [ ] Bind?
 - [ ] Hydration
 - [ ] Preview in Godot Editor
 

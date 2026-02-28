@@ -1,28 +1,21 @@
-use crate::controls::{any::IntoAny, functions::ControlFn, IntoControl};
-use grui_macros::component;
-use reactive_graph::{computed::ArcMemo, traits::Get};
+use grui::prelude::*;
 
 #[component]
-pub fn Show<W, C, CC>(
+pub fn Show<W>(
     when: W,
     #[prop(optional, into)] fallback: ControlFn,
-    children: C,
+    children: ChildrenFn,
 ) -> impl IntoControl
 where
     W: Fn() -> bool + Send + Sync + 'static,
-    C: Fn() -> CC + 'static,
-    CC: IntoControl + 'static,
 {
     let memoized_when = ArcMemo::new(move |_| when());
 
-    move || {
-        log::info!("Show component rendered: {}", memoized_when.get());
-        match memoized_when.get() {
-            true => children().into_any(),
-            false => match &fallback {
-                Some(fallback) => fallback.run(),
-                None => ().into_any(),
-            },
-        }
+    move || match memoized_when.get() {
+        true => children().into_any(),
+        false => match &fallback {
+            Some(fallback) => fallback.run(),
+            None => ().into_any(),
+        },
     }
 }

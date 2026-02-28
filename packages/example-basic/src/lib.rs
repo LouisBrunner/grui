@@ -3,8 +3,15 @@ use grui::prelude::*;
 use std::fmt::Debug;
 
 #[component]
-fn MenuButton(#[prop(into)] label: String, on_pressed: SignalCallable) -> impl IntoControl {
-    control! { <button on:pressed=on_pressed text=label.clone() /> }
+fn MenuButton(
+    #[prop(into)] label: String,
+    on_pressed: SignalCallable,
+    children: ChildrenFn,
+) -> impl IntoControl {
+    control! {
+      <button on:pressed=on_pressed text=label.clone() />
+      {children()}
+    }
 }
 
 #[component]
@@ -85,8 +92,12 @@ fn Menu(#[prop(into)] title: String) -> impl IntoControl {
                 <label text="[FAST2] STOP!" />
             </Show>
             // custom component usage
-            <MenuButton label="Resume" on_pressed=resume />
-            <MenuButton label="Quit" on_pressed=quit />
+            <MenuButton label="Resume" on_pressed=resume>
+              <label text="Resume Child" />
+            </MenuButton>
+            <MenuButton label="Quit" on_pressed=quit>
+              <label text="Quit Child" />
+            </MenuButton>
         </vboxcontainer>
     }
 }

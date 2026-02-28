@@ -148,13 +148,12 @@ impl Mountable for Gd<Control> {
                     get_id_for_gd(self),
                     get_id_for_gd(&sibling)
                 );
-                if sibling.get_parent().is_none() {
-                    log::error!(
-                        "Cannot mount {} after sibling {} without parent",
-                        get_id_for_gd(self),
-                        get_id_for_gd(&sibling)
-                    );
-                }
+                debug_assert!(
+                    sibling.get_parent().is_some(),
+                    "Cannot mount {} after sibling {} without parent",
+                    get_id_for_gd(self),
+                    get_id_for_gd(&sibling)
+                );
                 sibling.add_sibling(&self.clone());
             }
         }

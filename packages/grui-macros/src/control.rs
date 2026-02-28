@@ -32,7 +32,7 @@ fn transform_node(node: &HtmlNode) -> Result<TokenStream> {
             let value = raw.to_token_stream_string();
             Ok(quote! { #value })
         }
-        HtmlNode::Block(block) => Ok(quote! { #block }),
+        HtmlNode::Block(block) => Ok(quote! { #[allow(unused_braces)] #block }),
         HtmlNode::Comment(_) => Ok(quote! { grui::prelude::empty() }),
         HtmlNode::Doctype(_) => Err(Error::new(
             Span::call_site(),
@@ -152,7 +152,8 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
             if let Some(pattern) = pattern_tokens {
                 children_expr = quote! { |#pattern| #children_expr };
             } else {
-                children_expr = quote! { || #children_expr };
+                children_expr =
+                    quote! { ::grui::prelude::ToChildren::to_children(|| #children_expr)  };
             }
 
             fields.push(quote! { children(#children_expr) });
@@ -541,6 +542,7 @@ mod tests {
         let output = transform(input).expect("transform ok");
         let expected = quote! {
             ::grui::prelude::v_box_container().child(
+              #[allow (unused_braces)]
               { (1..=10).map(|i| { control! { <label text=format!("{} {}", title, i) />} }).collect::<Vec<_> >() }
             ).build()
         };
@@ -594,6 +596,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
+            #[allow (unused_braces)]
             { move | | if condition {
                 control! { <button text="Has button" /> }.into_any()
             } else {
@@ -615,7 +618,9 @@ mod tests {
         let output = transform(input).expect("transform ok");
         let expected = quote! {
             MyComp(MyCompProps::builder()
-                .children(|| ::grui::prelude::button().prop("text", move || "Click me").build())
+                .children(::grui::prelude::ToChildren::to_children(
+                  || ::grui::prelude::button().prop("text", move || "Click me").build()
+                ))
                 .build()
             )
         };

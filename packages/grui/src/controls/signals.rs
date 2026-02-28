@@ -1,7 +1,6 @@
-use super::functions::SignalCallable;
 use frunk::{HCons, HNil};
-use godot::builtin::Callable;
-use std::collections::HashMap;
+use godot::builtin::{Callable, Variant};
+use std::{collections::HashMap, fmt::Debug};
 
 pub trait SignalsGatherer {
     fn gather_signals(self) -> HashMap<String, Callable>;
@@ -32,5 +31,33 @@ where
         let mut vec = self.tail.gather_json();
         vec.push(self.head.0.to_string());
         vec
+    }
+}
+
+pub trait CompatibleFn: 'static + FnMut(&[&Variant]) -> () {}
+
+impl<T> CompatibleFn for T where T: 'static + FnMut(&[&Variant]) -> () {}
+
+pub struct SignalCallable(Box<dyn CompatibleFn>);
+
+impl SignalCallable {
+    pub fn new<F>(func: F) -> Self
+    where
+        F: CompatibleFn,
+    {
+        Self(Box::new(func))
+    }
+
+    pub fn to_godot(self, label: &str) -> Callable {
+        let mut func = self.0;
+        Callable::from_fn(&format!("{}_handler", label), move |args| {
+            (func)(args);
+        })
+    }
+}
+
+impl Debug for SignalCallable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SignalCallable")
     }
 }
