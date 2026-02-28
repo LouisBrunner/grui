@@ -6,8 +6,13 @@ use crate::{
     godot::ty::GDType,
 };
 use frunk::hlist::HList;
-use godot::{classes::Control, obj::Gd};
+use godot::{
+    classes::Control,
+    global::PropertyUsageFlags,
+    obj::{EngineBitfield, Gd},
+};
 use reactive_graph::effect::RenderEffect;
+use std::collections::HashSet;
 
 pub struct Builtin<Pp, Sg, Ch> {
     ty: GDType,
@@ -44,7 +49,7 @@ where
             self.signals.gather_json(),
             get_id_for_gd(&gd)
         );
-        let props = self.props.attach(gd.clone());
+        let props = self.props.attach(gd.clone(), &get_properties_for(&gd));
         let signals = self.signals.gather_signals();
         for (signal, method) in &signals {
             gd.connect(signal, method);
@@ -177,4 +182,18 @@ pub(crate) fn get_id_for_gd(node: &Gd<Control>) -> String {
     } else {
         prefix
     }
+}
+
+fn get_properties_for(node: &Gd<Control>) -> HashSet<String> {
+    node.get_property_list()
+        .iter_shared()
+        .filter_map(|property| {
+            let name = property.get("name")?;
+            let usage = property.get("usage")?.try_to::<PropertyUsageFlags>().ok()?;
+            if !usage.is_set(PropertyUsageFlags::STORAGE) {
+                return None;
+            }
+            Some(name.to_string())
+        })
+        .collect::<HashSet<_>>()
 }

@@ -3,6 +3,7 @@ pub(crate) mod controls;
 pub(crate) mod core;
 pub(crate) mod godot;
 mod tests;
+pub(crate) mod utils;
 
 extern crate self as grui;
 
@@ -16,6 +17,7 @@ pub mod prelude {
 
 #[doc(hidden)]
 pub mod internal {
+    pub use crate::utils::logger;
     pub use typed_builder;
 }
 

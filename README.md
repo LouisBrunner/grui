@@ -98,8 +98,6 @@ pub struct HUDRoot {
 
 ## Missing
 
-- [ ] Connect to external Godot signals / Allow root class to change props
-- [ ] Themes & Override
 - [ ] Forms
 - [ ] TestRenderer + allow changes
 - [ ] Better fallback macros for invalid syntax

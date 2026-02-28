@@ -71,7 +71,7 @@ fn Menu(#[prop(into)] title: String) -> impl IntoControl {
             {move || if count.get() > 3 {
               control!{ <label text="[SLOW2] STOP!" /> }.into_any()
             } else {
-              control!{ <label text="[SLOW2] Keep pressing!" /> }.into_any()
+              control!{ <label theme_override_font_sizes:font_size=30 text="[SLOW2] Keep pressing!" /> }.into_any()
             }}
             <Show
               when=move || {count.get() > 3}
@@ -116,42 +116,9 @@ struct BasicExtension;
 unsafe impl ExtensionLibrary for BasicExtension {
     fn on_stage_init(stage: InitStage) {
         if stage == InitStage::Scene {
-            log::set_max_level(log::STATIC_MAX_LEVEL);
-            if let Err(err) = log::set_logger(&LOGGER) {
-                godot_error!("Failed to set logger: {}", err);
-            }
+            LOGGER.install();
         }
     }
 }
 
-static LOGGER: GodotLogger = GodotLogger {};
-
-pub struct GodotLogger {}
-
-impl log::Log for GodotLogger {
-    fn enabled(&self, _metadata: &log::Metadata) -> bool {
-        true
-    }
-
-    fn log(&self, record: &log::Record) {
-        if !self.enabled(record.metadata()) {
-            return;
-        }
-
-        let formatted = format!(
-            "[{}:{}] {}",
-            record.file().unwrap_or("unknown"),
-            record.line().unwrap_or(0),
-            record.args()
-        );
-        match record.level() {
-            log::Level::Error => godot_error!("{}", formatted),
-            log::Level::Warn => godot_warn!("{}", formatted),
-            log::Level::Info => godot_print!("{}", formatted),
-            log::Level::Debug => godot_print!("DEBUG: {}", formatted),
-            log::Level::Trace => godot_print!("TRACE: {}", formatted),
-        }
-    }
-
-    fn flush(&self) {}
-}
+static LOGGER: grui::internal::logger::GodotLogger = grui::internal::logger::GodotLogger {};

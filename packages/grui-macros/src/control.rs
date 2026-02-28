@@ -171,12 +171,13 @@ fn apply_attributes(mut builder: TokenStream, element: &HtmlElement) -> Result<T
     for attribute in element.open_tag.attributes.iter() {
         match attribute {
             NodeAttribute::Attribute(attr) => {
-                let key = attribute_name(attr)?;
+                let mut key = attribute_name(attr)?;
                 if let Some(event) = key.strip_prefix("on:") {
                     let handler = attribute_value(attr, false, false)?;
                     let event_lit = LitStr::new(event, attr.key.span());
                     builder = quote! { #builder.on(#event_lit, #handler) };
                 } else {
+                    key = key.replace(":", "/");
                     let value = attribute_value(attr, true, true)?;
                     let key_lit = LitStr::new(&key, attr.key.span());
                     builder = quote! { #builder.prop(#key_lit, #value) };

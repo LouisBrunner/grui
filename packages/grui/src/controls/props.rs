@@ -1,17 +1,20 @@
+use super::builtin::get_id_for_gd;
+use crate::utils::errors::debug_error;
 use frunk::{HCons, HNil};
 use godot::{classes::Control, meta::ToGodot, obj::Gd};
 use reactive_graph::effect::RenderEffect;
-use std::{collections::HashMap, fmt::Debug};
-
-use crate::prelude::builtin::get_id_for_gd;
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Debug,
+};
 
 pub trait PropsGatherer {
-    fn attach(self, gd: Gd<Control>) -> Vec<RenderEffect<()>>;
+    fn attach(self, gd: Gd<Control>, properties: &HashSet<String>) -> Vec<RenderEffect<()>>;
     fn gather_json(&self) -> HashMap<String, String>;
 }
 
 impl PropsGatherer for HNil {
-    fn attach(self, _gd: Gd<Control>) -> Vec<RenderEffect<()>> {
+    fn attach(self, _gd: Gd<Control>, _properties: &HashSet<String>) -> Vec<RenderEffect<()>> {
         vec![]
     }
 
@@ -26,9 +29,24 @@ where
     V: Debug + ToGodot,
     Tail: PropsGatherer,
 {
-    fn attach(self, mut gd: Gd<Control>) -> Vec<RenderEffect<()>> {
-        let mut props = self.tail.attach(gd.clone());
+    fn attach(self, mut gd: Gd<Control>, properties: &HashSet<String>) -> Vec<RenderEffect<()>> {
+        let mut props = self.tail.attach(gd.clone(), properties);
         let new_prop = {
+            debug_error!(
+                properties.contains(&self.head.0) || self.head.0.contains("/"), // i.e. it's a theme override
+                "Godot class {} doesn't support property {}, supported: {}",
+                gd.get_class(),
+                self.head.0,
+                {
+                    let mut props = properties
+                        .iter()
+                        .map(|s| format!("\"{}\"", s))
+                        .collect::<Vec<_>>();
+                    props.sort();
+                    props.join(", ")
+                }
+            );
+
             RenderEffect::new(move |prev| {
                 let value = (self.head.1)().to_variant();
                 if prev.is_some() {
