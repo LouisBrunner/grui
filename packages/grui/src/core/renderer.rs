@@ -54,13 +54,12 @@ pub struct TestRenderer {
 }
 
 impl TestRenderer {
-    pub fn mount<P, C, T>(component: C, props: P) -> Self
+    pub fn mount<C>(control: C) -> Self
     where
-        C: FnOnce(P) -> T,
-        T: IntoControl,
-        T: Render,
+        C: IntoControl + 'static,
+        C: Render,
     {
-        let result = format!("[{}]", component(props).into_control().to_json());
+        let result = format!("[{}]", control.into_control().to_json());
         TestRenderer { result }
     }
 

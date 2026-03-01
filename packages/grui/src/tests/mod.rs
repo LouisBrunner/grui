@@ -5,7 +5,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[component]
-    fn Simple(a: u32, b: String) -> impl IntoControl {
+    fn Simple(a: u32, #[prop(into)] b: String) -> impl IntoControl {
         control! {
           <label text=format!("a: {}, b: {}", a, b) />
         }
@@ -13,11 +13,7 @@ mod tests {
 
     #[test]
     fn with_simple() {
-        let props = SimpleProps {
-            a: 42,
-            b: "dauphin".to_string(),
-        };
-        let renderer = TestRenderer::mount(Simple, props);
+        let renderer = TestRenderer::mount(control! { <Simple a=42 b="dauphin" /> });
         assert_eq!(
             renderer.snapshot(),
             r#"[{"type": "Label", "props": {"text": "a: 42, b: dauphin"}}]"#
@@ -42,12 +38,10 @@ mod tests {
 
     #[test]
     fn with_builtins() {
-        let props = BuiltinsProps {
-            resume: SignalCallable::new(|_| {
-                godot_print!("Resumed!");
-            }),
-        };
-        let renderer = TestRenderer::mount(Builtins, props);
+        let resume = SignalCallable::new(|_| {
+            godot_print!("Resumed!");
+        });
+        let renderer = TestRenderer::mount(control! { <Builtins resume=resume /> });
         assert_eq!(
             renderer.snapshot(),
             r#"[{"type": "Panel"}, {"type": "VBoxContainer", "children": [{"type": "Button", "props": {"text": "Resume"}, "signals": ["click"]}, {"type": "Button", "props": {"text": "Save"}}, {"type": "Button", "props": {"text": "Load"}}]}]"#
@@ -72,8 +66,7 @@ mod tests {
 
     #[test]
     fn with_static_iter() {
-        let props = StaticIterProps {};
-        let renderer = TestRenderer::mount(StaticIter, props);
+        let renderer = TestRenderer::mount(control! { <StaticIter /> });
         assert_eq!(
             renderer.snapshot(),
             r#"[{"type": "VBoxContainer", "children": [{"type": "Label", "props": {"text": "Item 1"}}, {"type": "Label", "props": {"text": "Item 2"}}, {"type": "Label", "props": {"text": "Item 3"}}, {"type": "Label", "props": {"text": "Item 4"}}, {"type": "Label", "props": {"text": "Item 5"}}, {"type": "Label", "props": {"text": "Item 6"}}, {"type": "Label", "props": {"text": "Item 7"}}, {"type": "Label", "props": {"text": "Item 8"}}, {"type": "Label", "props": {"text": "Item 9"}}, {"type": "Label", "props": {"text": "Item 10"}}]}]"#
@@ -81,12 +74,12 @@ mod tests {
     }
 
     #[component]
-    fn Custom(label: String) -> impl IntoControl {
+    fn Custom(#[prop(into)] label: String) -> impl IntoControl {
         control! {
           <panel>
             <>
               <label text=label.clone() />
-              <Simple a=10 b="hello".into() />
+              <Simple a=10 b="hello" />
             </>
           </panel>
         }
@@ -94,10 +87,7 @@ mod tests {
 
     #[test]
     fn with_custom() {
-        let props = CustomProps {
-            label: "Custom Label".into(),
-        };
-        let renderer = TestRenderer::mount(Custom, props);
+        let renderer = TestRenderer::mount(control! { <Custom label="Custom Label" /> });
         assert_eq!(
             renderer.snapshot(),
             r#"[{"type": "Panel", "children": [{"type": "Label", "props": {"text": "Custom Label"}}, {"type": "Label", "props": {"text": "a: 10, b: hello"}}]}]"#
