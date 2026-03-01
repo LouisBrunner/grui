@@ -3,8 +3,8 @@ use from_attr::FromAttr;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-    parse2, spanned::Spanned, Error, FnArg, Ident, ImplGenerics, ItemFn, Pat, PatIdent, Result,
-    Type, TypeGenerics, WhereClause,
+    parse2, spanned::Spanned, Error, Expr, FnArg, Ident, ImplGenerics, ItemFn, Pat, PatIdent,
+    Result, Type, TypeGenerics, WhereClause,
 };
 
 pub fn transform(args: TokenStream, item: TokenStream) -> Result<TokenStream> {
@@ -92,6 +92,7 @@ fn transform_props(
 struct PropAttributes {
     optional: bool,
     into: bool,
+    default: Option<Expr>,
 }
 
 #[derive(Debug)]
@@ -113,8 +114,14 @@ impl Prop {
         if self.attrs.into {
             builder_opts.push(quote! { #[builder(setter(into))] });
         }
+        if let Some(default) = &self.attrs.default {
+            builder_opts.push(quote! { #[builder(default = #default)] });
+        }
         if self.attrs.optional {
-            builder_opts.push(quote! { #[builder(default, setter(strip_option))] });
+            if self.attrs.default.is_none() {
+                builder_opts.push(quote! { #[builder(default)] });
+            }
+            builder_opts.push(quote! { #[builder(setter(strip_option))] });
         }
         quote! { #(#builder_opts)* pub #ident: #field_type }
     }

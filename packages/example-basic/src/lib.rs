@@ -98,6 +98,14 @@ fn Menu(#[prop(into)] title: String) -> impl IntoControl {
             <MenuButton label="Quit" on_pressed=quit>
               <label text="Quit Child" />
             </MenuButton>
+            // generic, html-like
+            <Generic background=Color::RED>
+              <label text="HTML-like" />
+              <Generic background=Color::BLUE margin=5.0 padding=10.0 display=Display::Horizontal(SubDisplay::Linear)>
+                <label text="Sub 1" />
+                <label text="Sub 2" />
+              </Generic>
+            </Generic>
         </vboxcontainer>
     }
 }

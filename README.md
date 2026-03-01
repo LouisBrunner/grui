@@ -76,6 +76,14 @@ fn PauseMenu(#[prop(optional) title: String) -> impl IntoControl {
             // custom component usage
             <MenuButton label="Resume" on_pressed=resume />
             <MenuButton label="Quit" on_pressed=quit />
+            // generic: html-like div equivalent
+            <Generic background=Color::RED>
+              <label text="HTML-like" />
+              <Generic background=Color::BLUE margin=5.0 padding=10.0 display=Display::Horizontal(SubDisplay::Linear)>
+                <label text="Sub 1" />
+                <label text="Sub 2" />
+              </Generic>
+            </Generic>
         </vboxcontainer>
     }
 }
@@ -99,7 +107,6 @@ pub struct HUDRoot {
 
 ## Missing
 
-- [ ] div equivalent
 - [ ] TestRenderer + allow changes
 - [ ] Better fallback macros for invalid syntax
 - [ ] Statically typed props/signals
