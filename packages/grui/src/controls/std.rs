@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use godot::{classes::Control, obj::NewAlloc};
 
 use super::{builtin::StateGD, IntoControl};
-use crate::core::render::{MountPlace, Mountable, Render};
+use crate::core::render::{MountPlace, Mountable, Render, TestSnapshot};
 
 impl Render for () {
     type State = StateGD;
@@ -16,8 +18,11 @@ impl Render for () {
 
     fn rebuild(self, _state: &mut Self::State) {}
 
-    fn to_json(self) -> String {
-        "null".to_string()
+    fn get_test_snapshot(&self) -> TestSnapshot {
+        TestSnapshot {
+            json: "null".to_string(),
+            actions: HashMap::new(),
+        }
     }
 }
 
@@ -44,9 +49,23 @@ impl<T: Render> Render for Vec<T> {
         }
     }
 
-    fn to_json(self) -> String {
-        let parts: Vec<String> = self.into_iter().map(|child| child.to_json()).collect();
-        format!("{}", parts.join(", "))
+    fn get_test_snapshot(&self) -> TestSnapshot {
+        let parts: Vec<TestSnapshot> = self
+            .iter()
+            .enumerate()
+            .map(|(i, child)| child.get_test_snapshot().prefix_action(&i.to_string()))
+            .collect();
+        TestSnapshot {
+            json: format!(
+                "{}",
+                parts
+                    .iter()
+                    .map(|s| s.json.clone())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            actions: TestSnapshot::new().merge_actions(parts).actions,
+        }
     }
 }
 

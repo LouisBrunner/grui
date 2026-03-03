@@ -1,5 +1,5 @@
 use super::IntoControl;
-use crate::core::render::Render;
+use crate::core::render::{Render, TestSnapshot};
 use reactive_graph::owner::Owner;
 
 pub struct OwnedControl<T> {
@@ -34,7 +34,7 @@ where
         self.inner.rebuild(state);
     }
 
-    fn to_json(self) -> String {
-        self.inner.to_json()
+    fn get_test_snapshot(&self) -> TestSnapshot {
+        self.inner.get_test_snapshot()
     }
 }

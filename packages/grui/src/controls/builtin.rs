@@ -2,7 +2,7 @@ use super::{
     any::AnyState, children::ChildrenGatherer, props::PropsGatherer, signals::SignalsGatherer,
 };
 use crate::{
-    core::render::{MountPlace, Mountable, Render},
+    core::render::{MountPlace, Mountable, Render, TestSnapshot},
     godot::ty::GDType,
 };
 use frunk::hlist::HList;
@@ -74,7 +74,7 @@ where
         self.children.gather().rebuild(&mut state.children);
     }
 
-    fn to_json(self) -> String {
+    fn get_test_snapshot(&self) -> TestSnapshot {
         let mut json = format!(r#"{{"type": "{}""#, self.ty);
         let props = self.props.gather_json();
         if !props.is_empty() {
@@ -98,12 +98,16 @@ where
                     .join(", ")
             ));
         }
-        let children = self.children.gather_json();
-        if !children.is_empty() {
-            json.push_str(&format!(r#", "children": [{}]"#, children.join(", ")));
+        let children = self.children.gather().get_test_snapshot();
+        if !children.json.is_empty() {
+            json.push_str(&format!(r#", "children": [{}]"#, children.json));
         }
         json.push('}');
-        json
+
+        TestSnapshot {
+            json,
+            actions: TestSnapshot::new().merge_actions(vec![children]).actions,
+        }
     }
 }
 

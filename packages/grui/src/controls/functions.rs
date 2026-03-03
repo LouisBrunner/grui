@@ -2,7 +2,7 @@ use super::{
     any::{AnyControl, IntoAny},
     IntoControl,
 };
-use crate::core::render::{MountPlace, Mountable, Render};
+use crate::core::render::{MountPlace, Mountable, Render, TestSnapshot};
 use reactive_graph::effect::RenderEffect;
 use std::fmt::Debug;
 
@@ -33,8 +33,8 @@ where
         old.unmount();
     }
 
-    fn to_json(mut self) -> String {
-        (self)().to_json()
+    fn get_test_snapshot(&self) -> TestSnapshot {
+        (self)().get_test_snapshot()
     }
 }
 

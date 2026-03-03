@@ -1,4 +1,6 @@
+use crate::controls::signals::SignalCallable;
 use godot::{classes::Control, obj::Gd};
+use std::collections::HashMap;
 
 pub trait IntoRender {
     type Output;
@@ -14,6 +16,46 @@ impl<T: Render> IntoRender for T {
     }
 }
 
+pub struct TestSnapshot {
+    pub json: String,
+    pub actions: HashMap<String, SignalCallable>,
+}
+
+impl TestSnapshot {
+    pub(crate) fn new() -> Self {
+        Self {
+            json: String::new(),
+            actions: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn prefix_action(self, prefix: &str) -> Self {
+        Self {
+            actions: self
+                .actions
+                .into_iter()
+                .map(|(key, value)| (format!("{}.{}", prefix, key), value))
+                .collect(),
+            json: self.json,
+        }
+    }
+
+    // fn make_test_path(prefix: String, suffix: String) -> String {
+    //     if prefix.is_empty() {
+    //         suffix.to_string()
+    //     } else {
+    //         format!("{}.{}", prefix, suffix)
+    //     }
+    // }
+
+    pub(crate) fn merge_actions(mut self, others: Vec<TestSnapshot>) -> Self {
+        for other in others {
+            self.actions.extend(other.actions);
+        }
+        self
+    }
+}
+
 pub trait Render: Sized {
     type State: Mountable;
 
@@ -21,7 +63,7 @@ pub trait Render: Sized {
 
     fn rebuild(self, state: &mut Self::State);
 
-    fn to_json(self) -> String;
+    fn get_test_snapshot(&self) -> TestSnapshot;
 }
 
 #[derive(Clone)]

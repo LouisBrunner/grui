@@ -1,5 +1,5 @@
 use super::{any::AnyState, children::ChildrenGatherer};
-use crate::core::render::{IntoRender, Render};
+use crate::core::render::{IntoRender, Render, TestSnapshot};
 use frunk::{hlist::HList, HCons, HNil};
 
 pub struct Fragment<Ch> {
@@ -24,9 +24,25 @@ where
         self.children.gather().rebuild(state);
     }
 
-    fn to_json(self) -> String {
-        let parts = self.children.gather_json();
-        format!("{}", parts.join(", "))
+    fn get_test_snapshot(&self) -> TestSnapshot {
+        let parts: Vec<TestSnapshot> = self
+            .children
+            .gather()
+            .iter()
+            .enumerate()
+            .map(|(i, child)| child.get_test_snapshot().prefix_action(&i.to_string()))
+            .collect();
+        TestSnapshot {
+            json: format!(
+                "{}",
+                parts
+                    .iter()
+                    .map(|s| s.json.clone())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            actions: TestSnapshot::new().merge_actions(parts).actions,
+        }
     }
 }
 

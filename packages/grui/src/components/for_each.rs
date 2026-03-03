@@ -1,6 +1,6 @@
 use crate::{
     controls::owned::OwnedControl,
-    core::render::{MountPlace, Mountable, Render},
+    core::render::{MountPlace, Mountable, Render, TestSnapshot},
 };
 use godot::{
     classes::Control,
@@ -16,7 +16,7 @@ use std::hash::Hash;
 pub fn For<EF, E, KF, K, CF, C, T>(each: EF, key: KF, children: CF) -> impl IntoControl
 where
     EF: Fn() -> E + 'static,
-    E: IntoIterator<Item = T>,
+    E: IntoIterator<Item = T> + Iterator<Item = T>,
     KF: Fn(&T) -> K + Clone + 'static,
     K: Eq + Hash + Ord + 'static,
     CF: Fn(T) -> C + Clone + 'static,
@@ -36,7 +36,7 @@ where
 pub fn ForEnumerate<EF, E, KF, K, CF, C, T>(each: EF, key: KF, children: CF) -> impl IntoControl
 where
     EF: Fn() -> E + 'static,
-    E: IntoIterator<Item = T>,
+    E: IntoIterator<Item = T> + Iterator<Item = T>,
     KF: Fn(&T) -> K + Clone + 'static,
     K: Eq + Hash + Ord + 'static,
     CF: Fn(ReadSignal<usize>, T) -> C + Clone + 'static,
@@ -58,7 +58,7 @@ where
 
 struct ForControl<E, KF, K, CF, C, CIF, T>
 where
-    E: IntoIterator<Item = T>,
+    E: IntoIterator<Item = T> + Iterator<Item = T>,
     KF: Fn(&T) -> K + Clone,
     K: Hash + Ord,
     CF: Fn(usize, T) -> (CIF, C),
@@ -74,7 +74,7 @@ where
 
 impl<E, KF, K, CF, C, CIF, T> Render for ForControl<E, KF, K, CF, C, CIF, T>
 where
-    E: IntoIterator<Item = T>,
+    E: IntoIterator<Item = T> + Iterator<Item = T>,
     KF: Fn(&T) -> K + Clone,
     K: Hash + Ord,
     CF: Fn(usize, T) -> (CIF, C),
@@ -114,16 +114,26 @@ where
         state.do_diff(items, new_keys, self.children);
     }
 
-    fn to_json(self) -> String {
-        self.each
-            .into_iter()
+    fn get_test_snapshot(&self) -> TestSnapshot {
+        let parts: Vec<TestSnapshot> = self
+            .each
             .enumerate()
             .map(|(i, child)| {
                 let (_, child) = (self.children)(i, child);
-                child
+                child.get_test_snapshot().prefix_action(&i.to_string())
             })
-            .collect::<Vec<_>>()
-            .to_json()
+            .collect();
+        TestSnapshot {
+            json: format!(
+                "{}",
+                parts
+                    .iter()
+                    .map(|s| s.json.clone())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            actions: TestSnapshot::new().merge_actions(parts).actions,
+        }
     }
 }
 
@@ -135,7 +145,7 @@ fn take_from_vec<T>(v: &mut Vec<Option<T>>, i: usize) -> Option<T> {
 
 impl<E, KF, K, CF, C, CIF, T> ForControl<E, KF, K, CF, C, CIF, T>
 where
-    E: IntoIterator<Item = T>,
+    E: IntoIterator<Item = T> + Iterator<Item = T>,
     KF: Fn(&T) -> K + Clone,
     K: Hash + Ord,
     CF: Fn(usize, T) -> (CIF, C),

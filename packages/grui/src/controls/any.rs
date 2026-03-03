@@ -1,4 +1,4 @@
-use crate::core::render::{MountPlace, Mountable, Render};
+use crate::core::render::{MountPlace, Mountable, Render, TestSnapshot};
 use erased::ErasedBox;
 use std::any::TypeId;
 
@@ -25,7 +25,6 @@ impl Erased {
         }
     }
 
-    #[allow(dead_code)]
     pub fn get_ref<T: 'static>(&self) -> &T {
         check(&self.type_id, &std::any::TypeId::of::<T>());
         unsafe { self.value.as_ref().unwrap().get_ref::<T>() }
@@ -55,7 +54,7 @@ pub struct AnyControl {
     value: Erased,
     build: fn(Erased) -> AnyState,
     rebuild: fn(Erased, &mut AnyState),
-    to_json: fn(Erased) -> String,
+    get_test_snapshot: fn(&Erased) -> TestSnapshot,
 }
 
 impl Render for AnyControl {
@@ -76,8 +75,8 @@ impl Render for AnyControl {
         }
     }
 
-    fn to_json(self) -> String {
-        (self.to_json)(self.value)
+    fn get_test_snapshot(&self) -> TestSnapshot {
+        (self.get_test_snapshot)(&self.value)
     }
 }
 
@@ -160,8 +159,8 @@ where
             value.into_inner::<T>().rebuild(state)
         }
 
-        fn to_json<T: Render + 'static>(value: Erased) -> String {
-            value.into_inner::<T>().to_json()
+        fn get_test_snapshot<T: Render + 'static>(value: &Erased) -> TestSnapshot {
+            value.get_ref::<T>().get_test_snapshot()
         }
 
         AnyControl {
@@ -169,7 +168,7 @@ where
             value: Erased::new(self),
             build: build::<T>,
             rebuild: rebuild::<T>,
-            to_json: to_json::<T>,
+            get_test_snapshot: get_test_snapshot::<T>,
         }
     }
 }

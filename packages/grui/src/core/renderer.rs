@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     controls::{any::AnyState, IntoControl},
-    core::render::MountPlace,
+    core::render::{MountPlace, TestSnapshot},
 };
 use any_spawner::Executor;
 use godot::{classes::Control, meta::AsArg, obj::Gd};
@@ -49,21 +49,35 @@ impl Renderer {
     }
 }
 
-pub struct TestRenderer {
-    result: String,
+pub struct TestRenderer<C>
+where
+    C: IntoControl + 'static,
+    C: Render,
+{
+    control: C,
 }
 
-impl TestRenderer {
-    pub fn mount<C>(control: C) -> Self
+impl<T> TestRenderer<T>
+where
+    T: IntoControl + 'static,
+    T: Render,
+{
+    pub fn mount<F>(control: T, actions: F)
     where
-        C: IntoControl + 'static,
-        C: Render,
+        F: Fn(&Self),
     {
-        let result = format!("[{}]", control.into_control().to_json());
-        TestRenderer { result }
+        // let _ = Executor::init_local_custom_executor(TestExecutor {});
+        let renderer = Self {
+            control: control.into_control(),
+        };
+        actions(&renderer);
     }
 
-    pub fn snapshot(&self) -> &str {
-        &self.result
+    pub fn snapshot(&self) -> TestSnapshot {
+        let snapshot = self.control.get_test_snapshot();
+        TestSnapshot {
+            json: format!("[{}]", snapshot.json),
+            ..snapshot
+        }
     }
 }

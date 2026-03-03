@@ -5,15 +5,10 @@ use std::{fmt::Debug, ops::Deref, sync::Arc};
 
 pub trait ChildrenGatherer {
     fn gather(self) -> Vec<AnyControl>;
-    fn gather_json(self) -> Vec<String>;
 }
 
 impl ChildrenGatherer for HNil {
     fn gather(self) -> Vec<AnyControl> {
-        Vec::new()
-    }
-
-    fn gather_json(self) -> Vec<String> {
         Vec::new()
     }
 }
@@ -27,12 +22,6 @@ where
         let mut children = self.tail.gather();
         children.push(self.head.into_any());
         children
-    }
-
-    fn gather_json(self) -> Vec<String> {
-        let mut vec = self.tail.gather_json();
-        vec.push(self.head.to_json());
-        vec
     }
 }
 
