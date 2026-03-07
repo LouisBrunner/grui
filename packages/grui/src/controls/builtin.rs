@@ -35,7 +35,7 @@ where
     type State = StateGD;
 
     fn build(self, opts: &BuildOptions) -> Self::State {
-        let gd = Node::new(self.ty.clone(), opts.test);
+        let gd = Node::new(self.ty.clone(), &opts.graph);
         log::trace!(
             "instancing {} ({:?} / {:?}) = {}",
             self.ty,

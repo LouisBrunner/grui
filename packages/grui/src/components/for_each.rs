@@ -92,7 +92,7 @@ where
             rendered_items.push(Some((set_index, view.build(opts))));
         }
         ForState {
-            placeholder: Node::new(GDType::Control, opts.test),
+            placeholder: Node::new(GDType::Control, &opts.graph),
             keys: hashed_items,
             items: rendered_items,
         }

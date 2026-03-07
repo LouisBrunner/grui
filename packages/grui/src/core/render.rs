@@ -1,12 +1,15 @@
-use super::testing::TestNode;
-use crate::{controls::signals::SignalCallable, godot::ty::GDType};
+use crate::{
+    controls::signals::SignalCallable,
+    core::testing::{TestGraphHandle, TestHandle},
+    godot::ty::GDType,
+};
 use godot::{
     classes::Control,
     global::PropertyUsageFlags,
     meta::ToGodot,
     obj::{EngineBitfield, Gd},
 };
-use std::{collections::HashSet, fmt::Debug, rc::Rc};
+use std::{collections::HashSet, fmt::Debug};
 
 pub trait IntoRender {
     type Output;
@@ -24,7 +27,7 @@ impl<T: Render> IntoRender for T {
 
 #[derive(Clone)]
 pub struct BuildOptions {
-    pub(crate) test: bool,
+    pub(crate) graph: Option<TestGraphHandle>,
 }
 
 pub trait Render: Sized {
@@ -52,15 +55,14 @@ pub trait Mountable {
 #[derive(Clone)]
 pub enum Node {
     Godot(Gd<Control>),
-    Test(Rc<TestNode>),
+    Test(TestHandle),
 }
 
 impl Node {
-    pub(crate) fn new(ty: GDType, test: bool) -> Self {
-        if test {
-            Self::Test(Rc::new(TestNode::new(ty.to_string())))
-        } else {
-            Self::Godot(ty.create_instance())
+    pub(crate) fn new(ty: GDType, test: &Option<TestGraphHandle>) -> Self {
+        match test {
+            Some(graph) => Self::Test(TestHandle::new(ty.to_string(), graph)),
+            None => Self::Godot(ty.create_instance()),
         }
     }
 
@@ -78,14 +80,14 @@ impl Node {
                     prefix
                 }
             }
-            Node::Test(node) => TestNode::get_id(node),
+            Node::Test(node) => node.get_id(),
         }
     }
 
     pub(crate) fn get_class(&self) -> String {
         match &self {
             Node::Godot(node) => node.get_class().to_string(),
-            Node::Test(node) => node.ty.clone(),
+            Node::Test(node) => node.get_type(),
         }
     }
 
@@ -121,7 +123,7 @@ impl Node {
             }
             Node::Test(mut node) => {
                 let text = format!("{:?}", value());
-                TestNode::set_prop(&mut node, key.to_string(), text.clone());
+                node.set_prop(key.to_string(), text.clone());
                 text
             }
         }
@@ -133,7 +135,7 @@ impl Node {
                 node.connect(&key, &func.to_godot(&key));
             }
             Node::Test(mut node) => {
-                TestNode::add_signal(&mut node, key, func);
+                node.add_signal(key, func);
             }
         }
     }
@@ -167,7 +169,7 @@ impl Mountable for Node {
                           );
                             return;
                         };
-                        TestNode::add_child(parent, node)
+                        parent.add_child(node)
                     }
                 }
             }
@@ -207,7 +209,7 @@ impl Mountable for Node {
                           );
                             return;
                         };
-                        TestNode::add_sibling(sibling, node)
+                        sibling.add_sibling(node)
                     }
                 }
             }
@@ -223,7 +225,7 @@ impl Mountable for Node {
         log::trace!("unmounting {}", self.get_id());
         match self {
             Node::Godot(node) => node.queue_free(),
-            Node::Test(node) => TestNode::unmount(node),
+            Node::Test(node) => node.unmount(),
         }
     }
 }
