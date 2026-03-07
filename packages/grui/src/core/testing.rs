@@ -11,13 +11,13 @@ use godot::builtin::Variant;
 use reactive_graph::owner::Owner;
 use serde::Serialize;
 use std::{
-    cell::RefCell,
+    cell::{Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
     rc::Rc,
 };
 
 #[derive(Clone)]
-pub(super) struct TestHandle {
+pub struct TestHandle {
     id: uuid::Uuid,
     graph: TestGraphHandle,
 }
@@ -31,88 +31,93 @@ impl TestHandle {
     }
 
     pub(crate) fn get_id(&self) -> String {
-        format!("{}#{:?}", self.ty, self.id)
+        let node = self.graph.get(self.id);
+        format!("{}#{:?}", node.ty, self.id)
     }
 
     pub(crate) fn get_type(&self) -> String {
-        self.ty.clone()
+        let node = self.graph.get(self.id);
+        node.ty.clone()
     }
 
-    pub fn select_by_indices<S: Into<String>>(&self, path: S) -> Option<&TestNode> {
+    pub fn select_by_indices<S: Into<String>>(&self, path: S) -> Option<TestHandle> {
         let path = path.into();
         let parts = path.split('.').collect::<Vec<_>>();
-        let mut current = self;
+        let mut current = self.clone();
         for part in parts {
+            let node = self.graph.get(current.id);
             let index = part.parse::<usize>().ok()?;
-            if index >= current.children.len() {
+            if index >= node.children.len() {
                 return None;
             }
-            current = self.graph.get(current.children[index])?;
+            current = self.graph.get(node.children[index]).handle();
         }
         Some(current)
     }
 
     pub fn call_signal(&mut self, name: &str, args: &[&Variant]) {
-        if let Some(signal) = self.signals.get_mut(name) {
+        let mut node = self.graph.get_mut(self.id);
+        if let Some(signal) = node.signals.get_mut(name) {
             signal.call(args);
         }
     }
 
-    fn serialize(&self) -> SerializableTestNode {
-        SerializableTestNode {
-            ty: self.ty.clone(),
-            props: self.props.clone(),
-            signals: self.signals.keys().cloned().collect(),
-            children: self
-                .children
-                .iter()
-                .filter_map(|c| Some(self.graph.get(*c)?.serialize()))
-                .collect(),
-        }
-    }
-
     pub fn snapshot(&self) -> serde_json::Result<String> {
-        serde_json::to_string(&self.serialize())
+        let node = self.graph.get(self.id);
+        serde_json::to_string(&node.serialize())
     }
 
     pub(crate) fn set_prop(&mut self, key: String, value: String) {
-        self.props.insert(key, value);
+        let mut node = self.graph.get_mut(self.id);
+        node.props.insert(key, value);
     }
 
     pub(crate) fn add_signal(&mut self, key: String, func: SignalCallable) {
-        self.signals.insert(key, func);
+        let mut node = self.graph.get_mut(self.id);
+        node.signals.insert(key, func);
     }
 
     pub(crate) fn add_child(&mut self, child: &mut TestHandle) {
-        self.children.push(child.id);
-        child.parent = Some(self.id);
+        {
+            let mut node = self.graph.get_mut(self.id);
+            node.children.push(child.id);
+        }
+        {
+            let mut child = self.graph.get_mut(child.id);
+            child.parent = Some(self.id);
+        }
     }
 
     pub(crate) fn add_sibling(&mut self, sibling: &mut TestHandle) {
-        let Some(parent) = self.parent else {
-            return;
+        let parent_id = {
+            let parent = { self.graph.get_mut(self.id).parent };
+            let Some(parent) = parent else {
+                return;
+            };
+            let mut parent = self.graph.get_mut(parent);
+            let index = parent
+                .children
+                .iter()
+                .position(|c| *c == self.id)
+                .map(|p| p + 1)
+                .unwrap_or_else(|| parent.children.len());
+            parent.children.insert(index, sibling.id);
+            parent.id
         };
-        let Some(parent) = self.graph.get_mut(parent) else {
-            return;
-        };
-        let index = parent
-            .children
-            .iter()
-            .position(|c| *c == self.id)
-            .map(|p| p + 1)
-            .unwrap_or_else(|| parent.children.len());
-        parent.children.insert(index, sibling.id);
-        sibling.parent = Some(parent.id);
+        {
+            let mut sibling = self.graph.get_mut(sibling.id);
+            sibling.parent = Some(parent_id);
+        }
     }
 
     pub(crate) fn unmount(&mut self) {
-        let Some(parent) = self.parent else {
-            return;
-        };
-        let Some(parent) = self.graph.get_mut(parent) else {
-            return;
-        };
-        parent.children.retain(|child| *child != self.id);
+        {
+            let parent = { self.graph.get_mut(self.id).parent };
+            if let Some(parent) = parent {
+                let mut parent = self.graph.get_mut(parent);
+                parent.children.retain(|child| *child != self.id);
+            }
+        }
         self.graph.remove(self.id);
     }
 }
@@ -127,6 +132,28 @@ struct TestNode {
     graph: TestGraphHandle,
 }
 
+impl TestNode {
+    fn handle(&self) -> TestHandle {
+        TestHandle {
+            id: self.id,
+            graph: self.graph.clone(),
+        }
+    }
+
+    fn serialize(&self) -> SerializableTestNode {
+        SerializableTestNode {
+            ty: self.ty.clone(),
+            props: self.props.clone(),
+            signals: self.signals.keys().cloned().collect(),
+            children: self
+                .children
+                .iter()
+                .map(|c| self.graph.get(*c).serialize())
+                .collect(),
+        }
+    }
+}
+
 #[derive(Serialize)]
 pub struct SerializableTestNode {
     pub ty: String,
@@ -136,7 +163,7 @@ pub struct SerializableTestNode {
 }
 
 #[derive(Clone)]
-pub(super) struct TestGraphHandle(Rc<RefCell<TestGraph>>);
+pub(crate) struct TestGraphHandle(Rc<RefCell<TestGraph>>);
 
 struct TestGraph {
     root: uuid::Uuid,
@@ -174,14 +201,16 @@ impl TestGraphHandle {
         }
     }
 
-    fn get(&self, id: uuid::Uuid) -> Option<&TestNode> {
+    fn get(&self, id: uuid::Uuid) -> Ref<'_, TestNode> {
         let graph = self.0.borrow();
-        graph.nodes.get(&id)
+        Ref::map(graph, |graph| graph.nodes.get(&id).expect("node not found"))
     }
 
-    fn get_mut(&self, id: uuid::Uuid) -> Option<&mut TestNode> {
-        let mut graph = self.0.borrow_mut();
-        graph.nodes.get_mut(&id)
+    fn get_mut(&self, id: uuid::Uuid) -> RefMut<'_, TestNode> {
+        let graph = self.0.borrow_mut();
+        RefMut::map(graph, |graph| {
+            graph.nodes.get_mut(&id).expect("node not found")
+        })
     }
 
     fn remove(&self, id: uuid::Uuid) {
@@ -224,7 +253,13 @@ impl TestRenderer {
         // let _ = Executor::init_local_custom_executor(TestExecutor {});
 
         let (graph, root) = TestGraphHandle::new();
-        let (owner, mounted) = mount(Node::Test(root), control, &BuildOptions { test: true });
+        let (owner, mounted) = mount(
+            Node::Test(root),
+            control,
+            &BuildOptions {
+                graph: Some(graph.clone()),
+            },
+        );
         let renderer = Self {
             mounted: AnyState::new::<C, C::State>(mounted),
             owner,
