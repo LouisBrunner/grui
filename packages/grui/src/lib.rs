@@ -21,4 +21,6 @@ pub mod internal {
     pub use typed_builder;
 }
 
-pub use crate::core::renderer::TestRenderer;
+pub mod testing {
+    pub use crate::core::testing::TestRenderer;
+}

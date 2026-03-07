@@ -1,15 +1,15 @@
 use super::IntoControl;
-use crate::core::render::{Render, TestSnapshot};
+use crate::core::render::{BuildOptions, Render};
 use reactive_graph::owner::Owner;
 
-pub struct OwnedControl<T> {
+pub(crate) struct OwnedControl<T> {
     inner: T,
     #[allow(dead_code)]
     owner: Owner,
 }
 
 impl<T> OwnedControl<T> {
-    pub fn new_with_owner(control: T, owner: Owner) -> Self
+    pub(crate) fn new_with_owner(control: T, owner: Owner) -> Self
     where
         T: IntoControl,
     {
@@ -26,15 +26,11 @@ where
 {
     type State = T::State;
 
-    fn build(self) -> Self::State {
-        self.inner.build()
+    fn build(self, opts: &BuildOptions) -> Self::State {
+        self.inner.build(opts)
     }
 
-    fn rebuild(self, state: &mut Self::State) {
-        self.inner.rebuild(state);
-    }
-
-    fn get_test_snapshot(&self) -> TestSnapshot {
-        self.inner.get_test_snapshot()
+    fn rebuild(self, state: &mut Self::State, opts: &BuildOptions) {
+        self.inner.rebuild(state, opts);
     }
 }

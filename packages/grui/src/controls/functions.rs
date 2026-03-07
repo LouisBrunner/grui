@@ -2,7 +2,7 @@ use super::{
     any::{AnyControl, IntoAny},
     IntoControl,
 };
-use crate::core::render::{MountPlace, Mountable, Render, TestSnapshot};
+use crate::core::render::{BuildOptions, MountPlace, Mountable, Render};
 use reactive_graph::effect::RenderEffect;
 use std::fmt::Debug;
 
@@ -14,27 +14,24 @@ where
 {
     type State = RenderEffect<C::State>;
 
-    fn build(mut self) -> Self::State {
+    fn build(mut self, opts: &BuildOptions) -> Self::State {
+        let opts = opts.clone();
         RenderEffect::new(move |prev| {
             let value = (self)();
             if let Some(mut state) = prev {
-                value.rebuild(&mut state);
+                value.rebuild(&mut state, &opts);
                 state
             } else {
-                value.build()
+                value.build(&opts)
             }
         })
     }
 
-    fn rebuild(self, state: &mut Self::State) {
-        let new = self.build();
+    fn rebuild(self, state: &mut Self::State, opts: &BuildOptions) {
+        let new = self.build(opts);
         let mut old = std::mem::replace(state, new);
         old.mount_after(state);
         old.unmount();
-    }
-
-    fn get_test_snapshot(&self) -> TestSnapshot {
-        (self)().get_test_snapshot()
     }
 }
 
@@ -70,7 +67,7 @@ where
 }
 
 impl ControlFn {
-    pub fn run(&self) -> AnyControl {
+    pub(crate) fn run(&self) -> AnyControl {
         (self.0)()
     }
 }

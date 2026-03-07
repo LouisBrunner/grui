@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use godot::prelude::*;
-    use grui::{prelude::*, TestRenderer};
+    use grui::{prelude::*, testing::*};
     use pretty_assertions::assert_eq;
 
     #[component]
@@ -15,7 +15,10 @@ mod tests {
     fn with_simple() {
         TestRenderer::mount(control! { <Simple a=42 b="dauphin" /> }, |renderer| {
             assert_eq!(
-                renderer.snapshot().json,
+                renderer
+                    .get_root()
+                    .snapshot()
+                    .expect("snapshot to be correct"),
                 r#"[{"type": "Label", "props": {"text": "a: 42, b: dauphin"}}]"#
             );
         });
@@ -44,7 +47,10 @@ mod tests {
         });
         TestRenderer::mount(control! { <Builtins resume=resume /> }, |renderer| {
             assert_eq!(
-                renderer.snapshot().json,
+                renderer
+                    .get_root()
+                    .snapshot()
+                    .expect("snapshot to be correct"),
                 r#"[{"type": "Panel"}, {"type": "VBoxContainer", "children": [{"type": "Button", "props": {"text": "Resume"}, "signals": ["click"]}, {"type": "Button", "props": {"text": "Save"}}, {"type": "Button", "props": {"text": "Load"}}]}]"#
             );
         });
@@ -70,7 +76,10 @@ mod tests {
     fn with_static_iter() {
         TestRenderer::mount(control! { <StaticIter /> }, |renderer| {
             assert_eq!(
-                renderer.snapshot().json,
+                renderer
+                    .get_root()
+                    .snapshot()
+                    .expect("snapshot to be correct"),
                 r#"[{"type": "VBoxContainer", "children": [{"type": "Label", "props": {"text": "Item 1"}}, {"type": "Label", "props": {"text": "Item 2"}}, {"type": "Label", "props": {"text": "Item 3"}}, {"type": "Label", "props": {"text": "Item 4"}}, {"type": "Label", "props": {"text": "Item 5"}}, {"type": "Label", "props": {"text": "Item 6"}}, {"type": "Label", "props": {"text": "Item 7"}}, {"type": "Label", "props": {"text": "Item 8"}}, {"type": "Label", "props": {"text": "Item 9"}}, {"type": "Label", "props": {"text": "Item 10"}}]}]"#
             );
         });
@@ -92,7 +101,10 @@ mod tests {
     fn with_custom() {
         TestRenderer::mount(control! { <Custom label="Custom Label" /> }, |renderer| {
             assert_eq!(
-                renderer.snapshot().json,
+                renderer
+                    .get_root()
+                    .snapshot()
+                    .expect("snapshot to be correct"),
                 r#"[{"type": "Panel", "children": [{"type": "Label", "props": {"text": "Custom Label"}}, {"type": "Label", "props": {"text": "a: 10, b: hello"}}]}]"#
             );
         });

@@ -1,4 +1,4 @@
-use crate::core::render::{MountPlace, Mountable, Render, TestSnapshot};
+use crate::core::render::{BuildOptions, MountPlace, Mountable, Render};
 use erased::ErasedBox;
 use std::any::TypeId;
 
@@ -8,14 +8,14 @@ fn check(id_1: &std::any::TypeId, id_2: &std::any::TypeId) {
     }
 }
 
-pub struct Erased {
+pub(crate) struct Erased {
     type_id: std::any::TypeId,
     value: Option<ErasedBox>,
     drop: fn(ErasedBox),
 }
 
 impl Erased {
-    pub fn new<T: 'static>(item: T) -> Self {
+    pub(crate) fn new<T: 'static>(item: T) -> Self {
         Self {
             type_id: std::any::TypeId::of::<T>(),
             value: Some(ErasedBox::new(Box::new(item))),
@@ -25,17 +25,18 @@ impl Erased {
         }
     }
 
-    pub fn get_ref<T: 'static>(&self) -> &T {
+    #[allow(dead_code)]
+    pub(crate) fn get_ref<T: 'static>(&self) -> &T {
         check(&self.type_id, &std::any::TypeId::of::<T>());
         unsafe { self.value.as_ref().unwrap().get_ref::<T>() }
     }
 
-    pub fn get_mut<T: 'static>(&mut self) -> &mut T {
+    pub(crate) fn get_mut<T: 'static>(&mut self) -> &mut T {
         check(&self.type_id, &std::any::TypeId::of::<T>());
         unsafe { self.value.as_mut().unwrap().get_mut::<T>() }
     }
 
-    pub fn into_inner<T: 'static>(mut self) -> T {
+    pub(crate) fn into_inner<T: 'static>(mut self) -> T {
         check(&self.type_id, &std::any::TypeId::of::<T>());
         *unsafe { self.value.take().unwrap().into_inner::<T>() }
     }
@@ -52,31 +53,26 @@ impl Drop for Erased {
 pub struct AnyControl {
     type_id: TypeId,
     value: Erased,
-    build: fn(Erased) -> AnyState,
-    rebuild: fn(Erased, &mut AnyState),
-    get_test_snapshot: fn(&Erased) -> TestSnapshot,
+    build: fn(Erased, &BuildOptions) -> AnyState,
+    rebuild: fn(Erased, &mut AnyState, &BuildOptions),
 }
 
 impl Render for AnyControl {
     type State = AnyState;
 
-    fn build(self) -> Self::State {
-        (self.build)(self.value)
+    fn build(self, opts: &BuildOptions) -> Self::State {
+        (self.build)(self.value, opts)
     }
 
-    fn rebuild(self, state: &mut Self::State) {
+    fn rebuild(self, state: &mut Self::State, opts: &BuildOptions) {
         if self.type_id == state.type_id {
-            (self.rebuild)(self.value, state)
+            (self.rebuild)(self.value, state, opts)
         } else {
-            let mut new = self.build();
+            let mut new = self.build(opts);
             state.mount_after(&mut new);
             state.unmount();
             *state = new;
         }
-    }
-
-    fn get_test_snapshot(&self) -> TestSnapshot {
-        (self.get_test_snapshot)(&self.value)
     }
 }
 
@@ -89,7 +85,7 @@ pub struct AnyState {
 }
 
 impl AnyState {
-    pub fn new<T, S>(state: T::State) -> Self
+    pub(crate) fn new<T, S>(state: T::State) -> Self
     where
         T: Render + 'static,
     {
@@ -150,17 +146,13 @@ where
     T: Render + 'static,
 {
     fn into_any(self) -> AnyControl {
-        fn build<T: Render + 'static>(value: Erased) -> AnyState {
-            AnyState::new::<T, T::State>(value.into_inner::<T>().build())
+        fn build<T: Render + 'static>(value: Erased, opts: &BuildOptions) -> AnyState {
+            AnyState::new::<T, T::State>(value.into_inner::<T>().build(opts))
         }
 
-        fn rebuild<T: Render + 'static>(value: Erased, state: &mut AnyState) {
+        fn rebuild<T: Render + 'static>(value: Erased, state: &mut AnyState, opts: &BuildOptions) {
             let state = state.state.get_mut::<<T as Render>::State>();
-            value.into_inner::<T>().rebuild(state)
-        }
-
-        fn get_test_snapshot<T: Render + 'static>(value: &Erased) -> TestSnapshot {
-            value.get_ref::<T>().get_test_snapshot()
+            value.into_inner::<T>().rebuild(state, opts)
         }
 
         AnyControl {
@@ -168,7 +160,6 @@ where
             value: Erased::new(self),
             build: build::<T>,
             rebuild: rebuild::<T>,
-            get_test_snapshot: get_test_snapshot::<T>,
         }
     }
 }

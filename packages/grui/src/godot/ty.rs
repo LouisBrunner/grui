@@ -14,7 +14,7 @@ use godot::{
 };
 use strum::Display;
 
-#[derive(Debug, Display)]
+#[derive(Debug, Display, Clone)]
 pub enum GDType {
     AspectRatioContainer,
     BoxContainer,

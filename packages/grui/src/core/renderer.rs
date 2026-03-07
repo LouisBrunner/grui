@@ -1,11 +1,8 @@
 use super::{
     reactive::GodotExecutor,
-    render::{Mountable, Render},
+    render::{BuildOptions, MountPlace, Mountable, Node, Render},
 };
-use crate::{
-    controls::{any::AnyState, IntoControl},
-    core::render::{MountPlace, TestSnapshot},
-};
+use crate::controls::{any::AnyState, IntoControl};
 use any_spawner::Executor;
 use godot::{classes::Control, meta::AsArg, obj::Gd};
 use reactive_graph::owner::Owner;
@@ -22,6 +19,22 @@ impl Drop for Renderer {
     }
 }
 
+pub(crate) fn mount<C, M>(parent: Node, control: C, opts: &BuildOptions) -> (Owner, M)
+where
+    C: IntoControl + 'static,
+    C: Render<State = M>,
+    M: Mountable,
+{
+    let owner = Owner::new();
+    let mounted = owner.with(move || {
+        let control = control.into_control();
+        let mut mountable = control.build(opts);
+        mountable.mount(MountPlace::AppendToParent(parent));
+        mountable
+    });
+    (owner, mounted)
+}
+
 impl Renderer {
     pub fn mount<P, FC, C>(parent: P, control: FC) -> Self
     where
@@ -34,50 +47,15 @@ impl Renderer {
 
         let parent = parent.into_arg().to_owned();
 
-        let owner = Owner::new();
-        let mounted = owner.with(move || {
-            let control = control().into_control();
-            let mut mountable = control.build();
-            mountable.mount(MountPlace::AppendToParent(parent));
-            mountable
-        });
+        let (owner, mounted) = mount(
+            Node::Godot(parent),
+            control(),
+            &BuildOptions { test: false },
+        );
 
         Renderer {
             mounted: AnyState::new::<C, C::State>(mounted),
             owner,
-        }
-    }
-}
-
-pub struct TestRenderer<C>
-where
-    C: IntoControl + 'static,
-    C: Render,
-{
-    control: C,
-}
-
-impl<T> TestRenderer<T>
-where
-    T: IntoControl + 'static,
-    T: Render,
-{
-    pub fn mount<F>(control: T, actions: F)
-    where
-        F: Fn(&Self),
-    {
-        // let _ = Executor::init_local_custom_executor(TestExecutor {});
-        let renderer = Self {
-            control: control.into_control(),
-        };
-        actions(&renderer);
-    }
-
-    pub fn snapshot(&self) -> TestSnapshot {
-        let snapshot = self.control.get_test_snapshot();
-        TestSnapshot {
-            json: format!("[{}]", snapshot.json),
-            ..snapshot
         }
     }
 }

@@ -1,7 +1,6 @@
-use super::builtin::get_id_for_gd;
-use crate::utils::errors::debug_error;
+use crate::{core::render::Node, utils::errors::debug_error};
 use frunk::{HCons, HNil};
-use godot::{classes::Control, meta::ToGodot, obj::Gd};
+use godot::meta::ToGodot;
 use reactive_graph::effect::RenderEffect;
 use std::{
     collections::{HashMap, HashSet},
@@ -9,16 +8,16 @@ use std::{
 };
 
 pub trait PropsGatherer {
-    fn attach(self, gd: Gd<Control>, properties: &HashSet<String>) -> Vec<RenderEffect<()>>;
-    fn gather_json(&self) -> HashMap<String, String>;
+    fn attach(self, node: Node, properties: &Option<HashSet<String>>) -> Vec<RenderEffect<()>>;
+    fn get_debug(&self) -> HashMap<String, String>;
 }
 
 impl PropsGatherer for HNil {
-    fn attach(self, _gd: Gd<Control>, _properties: &HashSet<String>) -> Vec<RenderEffect<()>> {
+    fn attach(self, _node: Node, _properties: &Option<HashSet<String>>) -> Vec<RenderEffect<()>> {
         vec![]
     }
 
-    fn gather_json(&self) -> HashMap<String, String> {
+    fn get_debug(&self) -> HashMap<String, String> {
         HashMap::new()
     }
 }
@@ -29,44 +28,47 @@ where
     V: Debug + ToGodot,
     Tail: PropsGatherer,
 {
-    fn attach(self, mut gd: Gd<Control>, properties: &HashSet<String>) -> Vec<RenderEffect<()>> {
-        let mut props = self.tail.attach(gd.clone(), properties);
+    fn attach(self, node: Node, properties: &Option<HashSet<String>>) -> Vec<RenderEffect<()>> {
+        let mut props = self.tail.attach(node.clone(), properties);
+        let key = self.head.0;
         let new_prop = {
             debug_error!(
-                properties.contains(&self.head.0) || self.head.0.contains("/"), // i.e. it's a theme override
+                match properties {
+                    None => true,
+                    Some(properties) => properties.contains(&key) || key.contains("/"), // i.e. it's a theme override
+                },
                 "Godot class {} doesn't support property {}, supported: {}",
-                gd.get_class(),
-                self.head.0,
+                node.get_class(),
+                key,
                 {
-                    let mut props = properties
-                        .iter()
-                        .map(|s| format!("\"{}\"", s))
-                        .collect::<Vec<_>>();
-                    props.sort();
-                    props.join(", ")
+                    match properties {
+                        None => "none".to_string(),
+                        Some(properties) => {
+                            let mut props = properties
+                                .iter()
+                                .map(|s| format!("\"{}\"", s))
+                                .collect::<Vec<_>>();
+                            props.sort();
+                            props.join(", ")
+                        }
+                    }
                 }
             );
 
             RenderEffect::new(move |prev| {
-                let value = (self.head.1)().to_variant();
+                let value = node.set(&key, &self.head.1);
                 if prev.is_some() {
-                    log::trace!(
-                        "updating prop {} to {} for {}",
-                        self.head.0,
-                        value,
-                        get_id_for_gd(&gd)
-                    );
+                    log::trace!("updating prop {} to {} for {}", key, value, node.get_id(),);
                 }
-                gd.set(&self.head.0, &value);
             })
         };
         props.push(new_prop);
         props
     }
 
-    fn gather_json(&self) -> HashMap<String, String> {
-        let mut map = self.tail.gather_json();
-        map.insert(self.head.0.to_string(), format!("{:?}", self.head.1()));
+    fn get_debug(&self) -> HashMap<String, String> {
+        let mut map = self.tail.get_debug();
+        map.insert(self.head.0.clone(), format!("{:?}", self.head.1()));
         map
     }
 }

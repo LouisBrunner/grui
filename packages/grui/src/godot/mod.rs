@@ -1,3 +1,3 @@
-pub mod builder;
-pub mod classes;
-pub mod ty;
+pub(crate) mod builder;
+pub(crate) mod classes;
+pub(crate) mod ty;

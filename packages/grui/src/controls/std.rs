@@ -1,29 +1,21 @@
-use std::collections::HashMap;
-
-use godot::{classes::Control, obj::NewAlloc};
-
 use super::{builtin::StateGD, IntoControl};
-use crate::core::render::{MountPlace, Mountable, Render, TestSnapshot};
+use crate::{
+    core::render::{BuildOptions, MountPlace, Mountable, Node, Render},
+    godot::ty::GDType,
+};
 
 impl Render for () {
     type State = StateGD;
 
-    fn build(self) -> Self::State {
+    fn build(self, opts: &BuildOptions) -> Self::State {
         StateGD {
-            node: Control::new_alloc(),
+            node: Node::new(GDType::Control, opts.test),
             props: vec![],
             children: vec![],
         }
     }
 
-    fn rebuild(self, _state: &mut Self::State) {}
-
-    fn get_test_snapshot(&self) -> TestSnapshot {
-        TestSnapshot {
-            json: "null".to_string(),
-            actions: HashMap::new(),
-        }
-    }
+    fn rebuild(self, _state: &mut Self::State, _opts: &BuildOptions) {}
 }
 
 impl Mountable for () {
@@ -37,34 +29,15 @@ impl Mountable for () {
 impl<T: Render> Render for Vec<T> {
     type State = Vec<T::State>;
 
-    fn build(self) -> Self::State {
+    fn build(self, opts: &BuildOptions) -> Self::State {
         self.into_iter()
-            .map(|child| child.build())
+            .map(|child| child.build(opts))
             .collect::<Vec<_>>()
     }
 
-    fn rebuild(self, state: &mut Self::State) {
+    fn rebuild(self, state: &mut Self::State, opts: &BuildOptions) {
         for (child, state) in self.into_iter().zip(state.iter_mut()) {
-            child.rebuild(state);
-        }
-    }
-
-    fn get_test_snapshot(&self) -> TestSnapshot {
-        let parts: Vec<TestSnapshot> = self
-            .iter()
-            .enumerate()
-            .map(|(i, child)| child.get_test_snapshot().prefix_action(&i.to_string()))
-            .collect();
-        TestSnapshot {
-            json: format!(
-                "{}",
-                parts
-                    .iter()
-                    .map(|s| s.json.clone())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
-            actions: TestSnapshot::new().merge_actions(parts).actions,
+            child.rebuild(state, opts);
         }
     }
 }

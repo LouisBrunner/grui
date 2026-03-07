@@ -1,10 +1,7 @@
 use crate::{
     controls::owned::OwnedControl,
-    core::render::{MountPlace, Mountable, Render, TestSnapshot},
-};
-use godot::{
-    classes::Control,
-    obj::{Gd, NewAlloc},
+    core::render::{BuildOptions, MountPlace, Mountable, Node, Render},
+    godot::ty::GDType,
 };
 use grui::prelude::*;
 use indexmap::IndexSet;
@@ -16,7 +13,7 @@ use std::hash::Hash;
 pub fn For<EF, E, KF, K, CF, C, T>(each: EF, key: KF, children: CF) -> impl IntoControl
 where
     EF: Fn() -> E + 'static,
-    E: IntoIterator<Item = T> + Iterator<Item = T>,
+    E: IntoIterator<Item = T>,
     KF: Fn(&T) -> K + Clone + 'static,
     K: Eq + Hash + Ord + 'static,
     CF: Fn(T) -> C + Clone + 'static,
@@ -36,7 +33,7 @@ where
 pub fn ForEnumerate<EF, E, KF, K, CF, C, T>(each: EF, key: KF, children: CF) -> impl IntoControl
 where
     EF: Fn() -> E + 'static,
-    E: IntoIterator<Item = T> + Iterator<Item = T>,
+    E: IntoIterator<Item = T>,
     KF: Fn(&T) -> K + Clone + 'static,
     K: Eq + Hash + Ord + 'static,
     CF: Fn(ReadSignal<usize>, T) -> C + Clone + 'static,
@@ -58,7 +55,7 @@ where
 
 struct ForControl<E, KF, K, CF, C, CIF, T>
 where
-    E: IntoIterator<Item = T> + Iterator<Item = T>,
+    E: IntoIterator<Item = T>,
     KF: Fn(&T) -> K + Clone,
     K: Hash + Ord,
     CF: Fn(usize, T) -> (CIF, C),
@@ -74,7 +71,7 @@ where
 
 impl<E, KF, K, CF, C, CIF, T> Render for ForControl<E, KF, K, CF, C, CIF, T>
 where
-    E: IntoIterator<Item = T> + Iterator<Item = T>,
+    E: IntoIterator<Item = T>,
     KF: Fn(&T) -> K + Clone,
     K: Hash + Ord,
     CF: Fn(usize, T) -> (CIF, C),
@@ -84,7 +81,7 @@ where
 {
     type State = ForState<K, CIF, C::State>;
 
-    fn build(self) -> Self::State {
+    fn build(self, opts: &BuildOptions) -> Self::State {
         let items = self.each.into_iter();
         let (capacity, _) = items.size_hint();
         let mut hashed_items = IndexSet::with_capacity(capacity);
@@ -92,16 +89,16 @@ where
         for (index, item) in items.enumerate() {
             hashed_items.insert((self.key)(&item));
             let (set_index, view) = (self.children)(index, item);
-            rendered_items.push(Some((set_index, view.build())));
+            rendered_items.push(Some((set_index, view.build(opts))));
         }
         ForState {
-            placeholder: Control::new_alloc(),
+            placeholder: Node::new(GDType::Control, opts.test),
             keys: hashed_items,
             items: rendered_items,
         }
     }
 
-    fn rebuild(self, state: &mut Self::State) {
+    fn rebuild(self, state: &mut Self::State, opts: &BuildOptions) {
         let new_items = self.each.into_iter();
         let (capacity, _) = new_items.size_hint();
         let mut new_keys = IndexSet::with_capacity(capacity);
@@ -111,29 +108,7 @@ where
             items.push(Some(item));
         }
 
-        state.do_diff(items, new_keys, self.children);
-    }
-
-    fn get_test_snapshot(&self) -> TestSnapshot {
-        let parts: Vec<TestSnapshot> = self
-            .each
-            .enumerate()
-            .map(|(i, child)| {
-                let (_, child) = (self.children)(i, child);
-                child.get_test_snapshot().prefix_action(&i.to_string())
-            })
-            .collect();
-        TestSnapshot {
-            json: format!(
-                "{}",
-                parts
-                    .iter()
-                    .map(|s| s.json.clone())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
-            actions: TestSnapshot::new().merge_actions(parts).actions,
-        }
+        state.do_diff(items, new_keys, self.children, opts);
     }
 }
 
@@ -145,7 +120,7 @@ fn take_from_vec<T>(v: &mut Vec<Option<T>>, i: usize) -> Option<T> {
 
 impl<E, KF, K, CF, C, CIF, T> ForControl<E, KF, K, CF, C, CIF, T>
 where
-    E: IntoIterator<Item = T> + Iterator<Item = T>,
+    E: IntoIterator<Item = T>,
     KF: Fn(&T) -> K + Clone,
     K: Hash + Ord,
     CF: Fn(usize, T) -> (CIF, C),
@@ -168,7 +143,7 @@ where
     CIF: Fn(usize),
     M: Mountable,
 {
-    placeholder: Gd<Control>,
+    placeholder: Node,
     keys: IndexSet<K>,
     items: Vec<Option<(CIF, M)>>,
 }
@@ -212,6 +187,7 @@ where
         mut new_children: Vec<Option<T>>,
         new_keys: IndexSet<K>,
         make_child: CF,
+        opts: &BuildOptions,
     ) where
         CF: Fn(usize, T) -> (CIF, C),
         C: Render<State = M>,
@@ -242,7 +218,7 @@ where
                             continue;
                         };
                         let (set_index, child) = (make_child)(new, item);
-                        child.rebuild(&mut state);
+                        child.rebuild(&mut state, opts);
                         prev = Some(new);
                         new_items.push(Some((set_index, state)));
                     }
@@ -271,7 +247,7 @@ where
                             continue;
                         };
                         let (set_index, child) = (make_child)(i, item);
-                        let mut state = child.build();
+                        let mut state = child.build(opts);
                         match prev {
                             Some(prev) => match new_items[prev].as_mut() {
                                 Some(prev) => prev.1.mount_after(&mut state),
