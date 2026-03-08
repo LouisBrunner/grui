@@ -1,3 +1,5 @@
+use proc_macro_error2::proc_macro_error;
+
 pub(crate) mod class;
 pub(crate) mod component;
 pub(crate) mod control;
@@ -5,6 +7,7 @@ pub(crate) mod control;
 #[cfg(test)]
 pub(crate) mod test_utils;
 
+#[proc_macro_error]
 #[proc_macro_attribute]
 pub fn class(
     attr: proc_macro::TokenStream,
@@ -16,6 +19,7 @@ pub fn class(
     proc_macro::TokenStream::from(output)
 }
 
+#[proc_macro_error]
 #[proc_macro_attribute]
 pub fn component(
     attr: proc_macro::TokenStream,
@@ -27,6 +31,7 @@ pub fn component(
     proc_macro::TokenStream::from(output)
 }
 
+#[proc_macro_error]
 #[proc_macro]
 pub fn control(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = proc_macro2::TokenStream::from(input);
