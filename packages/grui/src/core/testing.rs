@@ -278,7 +278,6 @@ impl TestGraphHandle {
 
     fn get(&self, id: uuid::Uuid) -> Ref<'_, TestNode> {
         let graph = self.0.borrow();
-        println!("GRAPH: {:?}", graph);
         Ref::map(graph, |graph| {
             graph
                 .nodes
@@ -289,7 +288,6 @@ impl TestGraphHandle {
 
     fn get_mut(&self, id: uuid::Uuid) -> RefMut<'_, TestNode> {
         let graph = self.0.borrow_mut();
-        println!("GRAPH: {:?}", graph);
         RefMut::map(graph, |graph| {
             graph
                 .nodes

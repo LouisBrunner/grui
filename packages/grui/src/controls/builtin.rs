@@ -83,9 +83,9 @@ impl Mountable for StateGD {
     }
 
     fn unmount(&mut self) {
-        self.node.unmount();
         for child in &mut self.children {
             child.unmount();
         }
+        self.node.unmount();
     }
 }
