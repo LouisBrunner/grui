@@ -15,6 +15,7 @@ use std::{
     cell::{Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
     fmt::Debug,
+    future::Future,
     rc::Rc,
 };
 
@@ -57,7 +58,7 @@ impl TestHandle {
         Some(current)
     }
 
-    pub fn call_signal(&mut self, name: &str, args: &[&Variant]) {
+    pub fn emit_signal(&mut self, name: &str, args: &[&Variant]) {
         let mut node = self.graph.get_mut(self.id);
         if let Some(signal) = node.signals.get_mut(name) {
             signal.call(args);
@@ -343,12 +344,40 @@ impl TestRenderer {
                 graph: Some(graph.clone()),
             },
         );
-        let renderer = Self {
+        actions(&Self {
             mounted: AnyState::new::<C, C::State>(mounted),
             owner,
             graph,
-        };
-        actions(&renderer);
+        });
+    }
+
+    pub async fn mount_async<C, F, FT>(control: C, actions: F)
+    where
+        C: IntoControl + 'static,
+        C: Render,
+        F: Fn(Self) -> FT,
+        FT: Future<Output = ()>,
+    {
+        let _ = Executor::init_tokio();
+
+        tokio::task::LocalSet::new()
+            .run_until(async {
+                let (graph, root) = TestGraphHandle::new();
+                let (owner, mounted) = mount(
+                    Node::Test(root),
+                    control,
+                    &BuildOptions {
+                        graph: Some(graph.clone()),
+                    },
+                );
+                actions(Self {
+                    mounted: AnyState::new::<C, C::State>(mounted),
+                    owner,
+                    graph,
+                })
+                .await;
+            })
+            .await;
     }
 
     pub fn get_root(&self) -> TestHandle {

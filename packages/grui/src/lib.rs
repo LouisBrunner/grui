@@ -24,4 +24,5 @@ pub mod internal {
 #[cfg(feature = "testing")]
 pub mod testing {
     pub use crate::core::testing::TestRenderer;
+    pub use any_spawner::Executor;
 }

@@ -1,9 +1,9 @@
 #[cfg(feature = "testing")]
 #[cfg(test)]
 mod tests {
-    use godot::prelude::*;
     use grui::{prelude::*, testing::*};
     use pretty_assertions::assert_eq;
+    use std::sync::{atomic::AtomicUsize, Arc};
 
     #[component]
     fn Simple(a: u32, #[prop(into)] b: String) -> impl IntoControl {
@@ -43,9 +43,13 @@ mod tests {
 
     #[test]
     fn with_builtins() {
-        let resume = SignalCallable::new(|_| {
-            godot_print!("Resumed!");
-        });
+        let called_times = Arc::new(AtomicUsize::new(0));
+        let resume = {
+            let called_times = called_times.clone();
+            SignalCallable::new(move |_| {
+                called_times.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            })
+        };
         TestRenderer::mount(control! { <Builtins resume=resume /> }, |renderer| {
             assert_eq!(
                 renderer
@@ -54,7 +58,58 @@ mod tests {
                     .expect("snapshot to be correct"),
                 r#"{"type":"Root","children":[{"type":"Panel"},{"type":"VBoxContainer","children":[{"type":"Button","props":{"text":"\"Resume\""},"signals":["click"]},{"type":"Button","props":{"text":"\"Save\""}},{"type":"Button","props":{"text":"\"Load\""}}]}]}"#
             );
+
+            assert_eq!(called_times.load(std::sync::atomic::Ordering::SeqCst), 0);
+
+            renderer
+                .get_root()
+                .select_by_indices("1.0")
+                .expect("to find resume")
+                .emit_signal("click", &[]);
+
+            assert_eq!(called_times.load(std::sync::atomic::Ordering::SeqCst), 1);
         });
+    }
+
+    #[component]
+    fn Reactive() -> impl IntoControl {
+        let (count, set_count) = signal(0);
+        let increase = SignalCallable::new(move |_| {
+            set_count.update(|prev| *prev += 1);
+        });
+        control! {
+          <label text=format!("{}", count.get()) />
+          <button on:click=increase text="+" />
+        }
+    }
+
+    #[tokio::test]
+    #[test_log::test]
+    async fn with_reactive() {
+        TestRenderer::mount_async(control! { <Reactive /> }, |renderer| async move {
+            assert_eq!(
+                renderer
+                    .get_root()
+                    .snapshot()
+                    .expect("snapshot to be correct"),
+                r#"{"type":"Root","children":[{"type":"Label","props":{"text":"\"0\""}},{"type":"Button","props":{"text":"\"+\""},"signals":["click"]}]}"#
+            );
+            renderer
+                .get_root()
+                .select_by_indices("1")
+                .expect("to find button")
+                .emit_signal("click", &[]);
+
+            Executor::tick().await;
+
+            assert_eq!(
+                renderer
+                    .get_root()
+                    .snapshot()
+                    .expect("snapshot to be correct"),
+                r#"{"type":"Root","children":[{"type":"Label","props":{"text":"\"1\""}},{"type":"Button","props":{"text":"\"+\""},"signals":["click"]}]}"#
+            );
+        }).await;
     }
 
     #[component]

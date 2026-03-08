@@ -105,9 +105,59 @@ pub struct HUDRoot {
 - `<For/>` and `<ForEnumerate />` for dynamic amount of entries.
 - `<Show />` for efficient conditions.
 
+### Testing
+
+The crate provides a `TestRenderer` which can be used to test your components, e.g.
+
+```rust
+#[test]
+fn with_simple() {
+    TestRenderer::mount(control! { <Simple a=42 b="dauphin" /> }, |renderer| {
+        assert_eq!(
+            renderer
+                .get_root()
+                .snapshot()
+                .expect("snapshot to be correct"),
+            r#"{"type":"Root","children":[{"type":"Label","props":{"text":"\"a: 42, b: dauphin\""}}]}"#
+        );
+    });
+}
+```
+
+You can also trigger Godot signals to simulate user interactions.
+
+```rust
+#[tokio::test]
+async fn with_reactive() {
+    TestRenderer::mount_async(control! { <Reactive /> }, |renderer| async move {
+        assert_eq!(
+            renderer
+                .get_root()
+                .snapshot()
+                .expect("snapshot to be correct"),
+            r#"{"type":"Root","children":[{"type":"Label","props":{"text":"\"0\""}},{"type":"Button","props":{"text":"\"+\""},"signals":["click"]}]}"#
+        );
+        renderer
+            .get_root()
+            .select_by_indices("1")
+            .expect("to find button")
+            .emit_signal("click", &[]);
+
+        Executor::tick().await;
+
+        assert_eq!(
+            renderer
+                .get_root()
+                .snapshot()
+                .expect("snapshot to be correct"),
+            r#"{"type":"Root","children":[{"type":"Label","props":{"text":"\"1\""}},{"type":"Button","props":{"text":"\"+\""},"signals":["click"]}]}"#
+        );
+    }).await;
+}
+```
+
 ## Missing
 
-- [ ] TestRenderer + allow changes
 - [ ] Better fallback macros for invalid syntax
 - [ ] Statically typed props/signals
 - [ ] Bind?
