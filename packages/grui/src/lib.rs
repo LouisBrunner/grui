@@ -24,5 +24,7 @@ pub mod internal {
 #[cfg(feature = "testing")]
 pub mod testing {
     pub use crate::core::testing::TestRenderer;
-    pub use any_spawner::Executor;
+    pub fn wait_for_async_changes() {
+        any_spawner::Executor::poll_local();
+    }
 }

@@ -143,7 +143,7 @@ async fn with_reactive() {
             .expect("to find button")
             .emit_signal("click", &[]);
 
-        Executor::tick().await;
+        wait_for_async_changes();
 
         assert_eq!(
             renderer
