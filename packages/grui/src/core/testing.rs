@@ -7,12 +7,14 @@ use crate::{
     core::render::BuildOptions,
     prelude::{any::AnyState, IntoControl},
 };
+use any_spawner::Executor;
 use godot::builtin::Variant;
 use reactive_graph::owner::Owner;
 use serde::Serialize;
 use std::{
     cell::{Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
+    fmt::Debug,
     rc::Rc,
 };
 
@@ -132,6 +134,30 @@ struct TestNode {
     graph: TestGraphHandle,
 }
 
+impl Debug for TestNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        #[derive(Debug)]
+        #[allow(dead_code)]
+        struct DebugTestNode {
+            id: uuid::Uuid,
+            ty: String,
+            parent: Option<uuid::Uuid>,
+            props: HashMap<String, String>,
+            signals: HashSet<String>,
+            children: Vec<uuid::Uuid>,
+        }
+        DebugTestNode {
+            id: self.id,
+            ty: self.ty.clone(),
+            parent: self.parent,
+            props: self.props.clone(),
+            signals: self.signals.keys().cloned().collect(),
+            children: self.children.clone(),
+        }
+        .fmt(f)
+    }
+}
+
 impl TestNode {
     fn handle(&self) -> TestHandle {
         TestHandle {
@@ -156,9 +182,13 @@ impl TestNode {
 
 #[derive(Serialize)]
 pub struct SerializableTestNode {
+    #[serde(rename = "type")]
     pub ty: String,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub props: HashMap<String, String>,
+    #[serde(skip_serializing_if = "HashSet::is_empty")]
     pub signals: HashSet<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub children: Vec<SerializableTestNode>,
 }
 
@@ -168,6 +198,51 @@ pub(crate) struct TestGraphHandle(Rc<RefCell<TestGraph>>);
 struct TestGraph {
     root: uuid::Uuid,
     nodes: HashMap<uuid::Uuid, TestNode>,
+}
+
+impl TestGraph {
+    fn format_branch(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        id: &uuid::Uuid,
+        links: &HashMap<uuid::Uuid, Vec<&uuid::Uuid>>,
+        depth: usize,
+    ) -> std::fmt::Result {
+        f.write_fmt(format_args!("|{:<depth$} ", "", depth = depth * 2))?;
+        let node = self.nodes.get(id).unwrap();
+        f.debug_struct(&node.ty)
+            .field("id", &node.id)
+            .field("props", &node.props)
+            .field("signals", &node.signals)
+            .finish()?;
+        f.write_str("\n")?;
+        for child in &node.children {
+            self.format_branch(f, child, links, depth + 1)?;
+        }
+        Ok(())
+    }
+}
+
+impl Debug for TestGraph {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let no_parent_id = uuid::Uuid::new_v4();
+        let mut links = HashMap::new();
+        for (id, node) in &self.nodes {
+            links
+                .entry(node.parent.unwrap_or(no_parent_id))
+                .or_insert_with(Vec::new)
+                .push(id);
+        }
+        f.debug_struct("Graph")
+            .field("root", &self.root)
+            .field("nodes", &self.nodes.len())
+            .finish()?;
+        f.write_str("\n")?;
+        for root in links.get(&no_parent_id).into_iter().flatten() {
+            self.format_branch(f, root, &links, 0)?;
+        }
+        Ok(())
+    }
 }
 
 impl TestGraphHandle {
@@ -203,13 +278,23 @@ impl TestGraphHandle {
 
     fn get(&self, id: uuid::Uuid) -> Ref<'_, TestNode> {
         let graph = self.0.borrow();
-        Ref::map(graph, |graph| graph.nodes.get(&id).expect("node not found"))
+        println!("GRAPH: {:?}", graph);
+        Ref::map(graph, |graph| {
+            graph
+                .nodes
+                .get(&id)
+                .expect(&format!("node not found: {}", id))
+        })
     }
 
     fn get_mut(&self, id: uuid::Uuid) -> RefMut<'_, TestNode> {
         let graph = self.0.borrow_mut();
+        println!("GRAPH: {:?}", graph);
         RefMut::map(graph, |graph| {
-            graph.nodes.get_mut(&id).expect("node not found")
+            graph
+                .nodes
+                .get_mut(&id)
+                .expect(&format!("node not found: {}", id))
         })
     }
 
@@ -250,7 +335,7 @@ impl TestRenderer {
         C: Render,
         F: Fn(&Self),
     {
-        // let _ = Executor::init_local_custom_executor(TestExecutor {});
+        let _ = Executor::init_futures_executor();
 
         let (graph, root) = TestGraphHandle::new();
         let (owner, mounted) = mount(

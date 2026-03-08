@@ -46,6 +46,7 @@ impl SignalCallable {
         Self(Box::new(func))
     }
 
+    #[cfg(feature = "testing")]
     pub(crate) fn call(&mut self, args: &[&Variant]) {
         (self.0)(args);
     }

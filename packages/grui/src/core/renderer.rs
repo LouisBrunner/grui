@@ -50,7 +50,9 @@ impl Renderer {
         let (owner, mounted) = mount(
             Node::Godot(parent),
             control(),
-            &BuildOptions { graph: None },
+            &BuildOptions {
+                ..Default::default()
+            },
         );
 
         Renderer {

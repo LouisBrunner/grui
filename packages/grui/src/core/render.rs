@@ -1,8 +1,6 @@
-use crate::{
-    controls::signals::SignalCallable,
-    core::testing::{TestGraphHandle, TestHandle},
-    godot::ty::GDType,
-};
+#[cfg(feature = "testing")]
+use super::testing::{TestGraphHandle, TestHandle};
+use crate::{controls::signals::SignalCallable, godot::ty::GDType};
 use godot::{
     classes::Control,
     global::PropertyUsageFlags,
@@ -25,8 +23,9 @@ impl<T: Render> IntoRender for T {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct BuildOptions {
+    #[cfg(feature = "testing")]
     pub(crate) graph: Option<TestGraphHandle>,
 }
 
@@ -55,14 +54,20 @@ pub trait Mountable {
 #[derive(Clone)]
 pub enum Node {
     Godot(Gd<Control>),
+    #[cfg(feature = "testing")]
     Test(TestHandle),
 }
 
 impl Node {
-    pub(crate) fn new(ty: GDType, test: &Option<TestGraphHandle>) -> Self {
-        match test {
+    pub(crate) fn new(ty: GDType, _opts: &BuildOptions) -> Self {
+        #[cfg(feature = "testing")]
+        match &_opts.graph {
             Some(graph) => Self::Test(TestHandle::new(ty.to_string(), graph)),
             None => Self::Godot(ty.create_instance()),
+        }
+        #[cfg(not(feature = "testing"))]
+        {
+            Self::Godot(ty.create_instance())
         }
     }
 
@@ -80,6 +85,7 @@ impl Node {
                     prefix
                 }
             }
+            #[cfg(feature = "testing")]
             Node::Test(node) => node.get_id(),
         }
     }
@@ -87,12 +93,15 @@ impl Node {
     pub(crate) fn get_class(&self) -> String {
         match &self {
             Node::Godot(node) => node.get_class().to_string(),
+            #[cfg(feature = "testing")]
             Node::Test(node) => node.get_type(),
         }
     }
 
     pub(crate) fn get_properties(&self) -> Option<HashSet<String>> {
-        let Node::Godot(node) = self else {
+        #[allow(irrefutable_let_patterns)] // due to testing feature
+        let Node::Godot(node) = self
+        else {
             return None;
         };
         let properties = node
@@ -121,8 +130,11 @@ impl Node {
                 node.set(key, &variant);
                 variant.to_string()
             }
+            #[cfg(feature = "testing")]
             Node::Test(mut node) => {
-                let text = format!("{:?}", value());
+                use crate::controls::props::serialize_prop;
+
+                let text = serialize_prop(value);
                 node.set_prop(key.to_string(), text.clone());
                 text
             }
@@ -134,6 +146,7 @@ impl Node {
             Node::Godot(mut node) => {
                 node.connect(&key, &func.to_godot(&key));
             }
+            #[cfg(feature = "testing")]
             Node::Test(mut node) => {
                 node.add_signal(key, func);
             }
@@ -148,7 +161,9 @@ impl Mountable for Node {
                 log::trace!("mounting {} to parent {}", self.get_id(), parent.get_id());
                 match self {
                     Node::Godot(node) => {
-                        let Node::Godot(parent) = &mut parent else {
+                        #[allow(irrefutable_let_patterns)] // due to testing feature
+                        let Node::Godot(parent) = &mut parent
+                        else {
                             debug_assert!(
                               false,
                               "Node and parent need to be the same type: Godot({:?}) vs Other({:?})",
@@ -159,6 +174,7 @@ impl Mountable for Node {
                         };
                         parent.add_child(&node.clone())
                     }
+                    #[cfg(feature = "testing")]
                     Node::Test(node) => {
                         let Node::Test(parent) = &mut parent else {
                             debug_assert!(
@@ -182,7 +198,9 @@ impl Mountable for Node {
                 match self {
                     Node::Godot(node) => {
                         let sibling_id = sibling.get_id();
-                        let Node::Godot(sibling) = &mut sibling else {
+                        #[allow(irrefutable_let_patterns)] // due to testing feature
+                        let Node::Godot(sibling) = &mut sibling
+                        else {
                             debug_assert!(
                               false,
                               "Node and sibling need to be the same type: Godot({:?}) vs Other({:?})",
@@ -199,6 +217,7 @@ impl Mountable for Node {
                         );
                         sibling.add_sibling(&node.clone());
                     }
+                    #[cfg(feature = "testing")]
                     Node::Test(node) => {
                         let Node::Test(sibling) = &mut sibling else {
                             debug_assert!(
@@ -225,6 +244,7 @@ impl Mountable for Node {
         log::trace!("unmounting {}", self.get_id());
         match self {
             Node::Godot(node) => node.queue_free(),
+            #[cfg(feature = "testing")]
             Node::Test(node) => node.unmount(),
         }
     }

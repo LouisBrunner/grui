@@ -21,6 +21,7 @@ pub mod internal {
     pub use typed_builder;
 }
 
+#[cfg(feature = "testing")]
 pub mod testing {
     pub use crate::core::testing::TestRenderer;
 }

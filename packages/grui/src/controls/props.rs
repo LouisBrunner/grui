@@ -68,7 +68,16 @@ where
 
     fn get_debug(&self) -> HashMap<String, String> {
         let mut map = self.tail.get_debug();
-        map.insert(self.head.0.clone(), format!("{:?}", self.head.1()));
+        map.insert(self.head.0.clone(), serialize_prop(&self.head.1));
         map
     }
+}
+
+pub(crate) fn serialize_prop<VF, V>(value: &VF) -> String
+where
+    VF: Fn() -> V + 'static,
+    V: Debug + ToGodot,
+{
+    let value = value();
+    format!("{:?}", value)
 }

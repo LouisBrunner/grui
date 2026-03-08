@@ -9,7 +9,7 @@ impl Render for () {
 
     fn build(self, opts: &BuildOptions) -> Self::State {
         StateGD {
-            node: Node::new(GDType::Control, &opts.graph),
+            node: Node::new(GDType::Control, opts),
             props: vec![],
             children: vec![],
         }

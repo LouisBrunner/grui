@@ -1,3 +1,4 @@
+#[cfg(feature = "testing")]
 #[cfg(test)]
 mod tests {
     use godot::prelude::*;
@@ -19,7 +20,7 @@ mod tests {
                     .get_root()
                     .snapshot()
                     .expect("snapshot to be correct"),
-                r#"[{"type": "Label", "props": {"text": "a: 42, b: dauphin"}}]"#
+                r#"{"type":"Root","children":[{"type":"Label","props":{"text":"\"a: 42, b: dauphin\""}}]}"#
             );
         });
     }
@@ -51,7 +52,7 @@ mod tests {
                     .get_root()
                     .snapshot()
                     .expect("snapshot to be correct"),
-                r#"[{"type": "Panel"}, {"type": "VBoxContainer", "children": [{"type": "Button", "props": {"text": "Resume"}, "signals": ["click"]}, {"type": "Button", "props": {"text": "Save"}}, {"type": "Button", "props": {"text": "Load"}}]}]"#
+                r#"{"type":"Root","children":[{"type":"Panel"},{"type":"VBoxContainer","children":[{"type":"Button","props":{"text":"\"Resume\""},"signals":["click"]},{"type":"Button","props":{"text":"\"Save\""}},{"type":"Button","props":{"text":"\"Load\""}}]}]}"#
             );
         });
     }
@@ -80,7 +81,7 @@ mod tests {
                     .get_root()
                     .snapshot()
                     .expect("snapshot to be correct"),
-                r#"[{"type": "VBoxContainer", "children": [{"type": "Label", "props": {"text": "Item 1"}}, {"type": "Label", "props": {"text": "Item 2"}}, {"type": "Label", "props": {"text": "Item 3"}}, {"type": "Label", "props": {"text": "Item 4"}}, {"type": "Label", "props": {"text": "Item 5"}}, {"type": "Label", "props": {"text": "Item 6"}}, {"type": "Label", "props": {"text": "Item 7"}}, {"type": "Label", "props": {"text": "Item 8"}}, {"type": "Label", "props": {"text": "Item 9"}}, {"type": "Label", "props": {"text": "Item 10"}}]}]"#
+                r#"{"type":"Root","children":[{"type":"VBoxContainer","children":[{"type":"Label","props":{"text":"\"Item 1\""}},{"type":"Label","props":{"text":"\"Item 2\""}},{"type":"Label","props":{"text":"\"Item 3\""}},{"type":"Label","props":{"text":"\"Item 4\""}},{"type":"Label","props":{"text":"\"Item 5\""}},{"type":"Label","props":{"text":"\"Item 6\""}},{"type":"Label","props":{"text":"\"Item 7\""}},{"type":"Label","props":{"text":"\"Item 8\""}},{"type":"Label","props":{"text":"\"Item 9\""}},{"type":"Label","props":{"text":"\"Item 10\""}}]}]}"#
             );
         });
     }
@@ -105,7 +106,7 @@ mod tests {
                     .get_root()
                     .snapshot()
                     .expect("snapshot to be correct"),
-                r#"[{"type": "Panel", "children": [{"type": "Label", "props": {"text": "Custom Label"}}, {"type": "Label", "props": {"text": "a: 10, b: hello"}}]}]"#
+                r#"{"type":"Root","children":[{"type":"Panel","children":[{"type":"Label","props":{"text":"\"Custom Label\""}},{"type":"Label","props":{"text":"\"a: 10, b: hello\""}}]}]}"#
             );
         });
     }

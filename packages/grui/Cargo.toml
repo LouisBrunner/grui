@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-any_spawner = "0.3.0"
+any_spawner = {version = "0.3.0" }
 erased = "0.1.2"
 frunk = "0.4.4"
 godot = { workspace = true }
@@ -13,12 +13,17 @@ indexmap = "2.13.0"
 log = "0.4.29"
 next_tuple = "0.1.0"
 reactive_graph = { version = "0.2.13", features = ["effects"] }
-serde = { version = "1.0.228", features = ["derive", "rc"] }
-serde_json = "1.0.149"
 similar = "2.7.0"
 strum = { version = "0.27.2", features = ["derive"] }
 typed-builder = "0.23.2"
-uuid = { version = "1.22.0", features = ["v4"] }
+
+serde = { version = "1.0.228", features = ["derive"], optional = true }
+serde_json = {version = "1.0.149", optional = true}
+uuid = { version = "1.22.0", features = ["v4"], optional = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
+
+[features]
+default = ["testing"]
+testing = ["any_spawner/futures-executor", "serde", "serde_json", "uuid"]
