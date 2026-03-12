@@ -33,8 +33,9 @@ layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_top = -80.0
+offset_top = -81.0
 offset_right = 80.0
+offset_bottom = -1.0
 grow_vertical = 0
 
 [connection signal="was_clicked" from="AdvancedPassive" to="AdvancedActive" method="on_event"]

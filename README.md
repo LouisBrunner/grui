@@ -112,7 +112,7 @@ The crate provides a `TestRenderer` which can be used to test your components, e
 ```rust
 #[test]
 fn with_simple() {
-    TestRenderer::mount(control! { <Simple a=42 b="dauphin" /> }, |renderer| {
+    TestRenderer::mount(|| control! { <Simple a=42 b="dauphin" /> }, |renderer| {
         assert_eq!(
             renderer
                 .get_root()
@@ -129,7 +129,7 @@ You can also trigger Godot signals to simulate user interactions.
 ```rust
 #[tokio::test]
 async fn with_reactive() {
-    TestRenderer::mount_async(control! { <Reactive /> }, |renderer| async move {
+    TestRenderer::mount_async(|| control! { <Reactive /> }, |renderer| async move {
         assert_eq!(
             renderer
                 .get_root()

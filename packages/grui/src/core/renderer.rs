@@ -19,15 +19,16 @@ impl Drop for Renderer {
     }
 }
 
-pub(crate) fn mount<C, M>(parent: Node, control: C, opts: &BuildOptions) -> (Owner, M)
+pub(crate) fn mount<FC, C, M>(parent: Node, control: FC, opts: &BuildOptions) -> (Owner, M)
 where
+    FC: Fn() -> C,
     C: IntoControl + 'static,
     C: Render<State = M>,
     M: Mountable,
 {
     let owner = Owner::new();
     let mounted = owner.with(move || {
-        let control = control.into_control();
+        let control = control().into_control();
         let mut mountable = control.build(opts);
         mountable.mount(MountPlace::AppendToParent(parent));
         mountable
@@ -49,7 +50,7 @@ impl Renderer {
 
         let (owner, mounted) = mount(
             Node::Godot(parent),
-            control(),
+            control,
             &BuildOptions {
                 ..Default::default()
             },

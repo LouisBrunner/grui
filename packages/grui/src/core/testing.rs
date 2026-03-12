@@ -328,8 +328,9 @@ impl Drop for TestRenderer {
 }
 
 impl TestRenderer {
-    pub fn mount<C, F>(control: C, actions: F)
+    pub fn mount<FC, C, F>(control: FC, actions: F)
     where
+        FC: Fn() -> C,
         C: IntoControl + 'static,
         C: Render,
         F: Fn(&Self),
@@ -351,8 +352,9 @@ impl TestRenderer {
         });
     }
 
-    pub async fn mount_async<C, F, FT>(control: C, actions: F)
+    pub async fn mount_async<FC, C, F, FT>(control: FC, actions: F)
     where
+        FC: Fn() -> C,
         C: IntoControl + 'static,
         C: Render,
         F: Fn(Self) -> FT,
