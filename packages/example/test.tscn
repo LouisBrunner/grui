@@ -1,0 +1,40 @@
+[gd_scene format=3 uid="uid://lrke0kors87l"]
+
+[node name="Root" type="Control" unique_id=1466431279]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PauseMenu" type="PauseMenu" parent="." unique_id=38069215]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="AdvancedActive" type="Advanced" parent="." unique_id=394637753]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -80.0
+offset_top = -80.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="AdvancedPassive" type="Advanced" parent="." unique_id=753511726]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -80.0
+offset_right = 80.0
+grow_vertical = 0
+
+[connection signal="was_clicked" from="AdvancedPassive" to="AdvancedActive" method="on_event"]

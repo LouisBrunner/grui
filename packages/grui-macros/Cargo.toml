@@ -16,6 +16,7 @@ quote = "1.0.38"
 rstml = { version = "0.12.1", features = ["rawtext-stable-hack"] }
 rstml-control-flow = "0.1.1"
 syn = { version = "2.0.98", features = ["full"] }
+strum = { version = "0.28.0", features = ["derive"] }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

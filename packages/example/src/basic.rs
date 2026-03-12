@@ -128,16 +128,3 @@ fn Basic() -> impl IntoControl {
 
 #[grui::prelude::class(root=Basic)]
 pub struct PauseMenu {}
-
-struct BasicExtension;
-
-#[gdextension]
-unsafe impl ExtensionLibrary for BasicExtension {
-    fn on_stage_init(stage: InitStage) {
-        if stage == InitStage::Scene {
-            LOGGER.install();
-        }
-    }
-}
-
-static LOGGER: grui::internal::logger::GodotLogger = grui::internal::logger::GodotLogger {};

@@ -1,5 +1,5 @@
 [package]
-name = "grui-example-basic"
+name = "grui-example"
 version.workspace = true
 edition.workspace = true
 publish = false

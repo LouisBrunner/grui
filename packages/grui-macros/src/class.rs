@@ -1,88 +1,55 @@
+use std::str::FromStr;
+
+use from_attr::FromAttr;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
+use strum::EnumString;
 use syn::{
-    parse::{Parse, ParseStream},
-    parse2,
-    punctuated::Punctuated,
-    spanned::Spanned,
-    Error, Ident, ItemStruct, Result, Token,
+    parse2, punctuated::Punctuated, spanned::Spanned, Error, Field, Ident, ItemStruct, Result, Type,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default, FromAttr)]
+#[attribute(idents = [prop])]
 struct Args {
-    base: Ident,
-    root: Ident,
-}
-
-impl Parse for Args {
-    fn parse(input: ParseStream) -> Result<Self> {
-        use syn::Token;
-
-        let mut base: Option<Ident> = None;
-        let mut root: Option<Ident> = None;
-
-        while !input.is_empty() {
-            let key: Ident = input.parse()?;
-            input.parse::<Token![=]>()?;
-            let value: Ident = input.parse()?;
-
-            let key_str = key.to_string();
-            if key_str == "base" {
-                if base.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `base`"));
-                }
-                base = Some(value);
-            } else if key_str == "root" {
-                if root.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `root`"));
-                }
-                root = Some(value);
-            } else {
-                return Err(Error::new(
-                    key.span(),
-                    "unexpected key; expected `base` or `root`",
-                ));
-            }
-
-            if input.peek(Token![,]) {
-                let _ = input.parse::<Token![,]>()?;
-            } else {
-                break;
-            }
-        }
-
-        let root = root.ok_or_else(|| Error::new(input.span(), "missing `root` argument"))?;
-        let base = base.unwrap_or_else(|| Ident::new("Control", proc_macro2::Span::call_site()));
-
-        Ok(Self { base, root })
-    }
+    base: Option<Ident>,
+    root: Option<Ident>,
+    forward: Option<Ident>,
+    no_impl: bool,
 }
 
 pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
-    let args = parse2::<Args>(attr)?;
+    let attr_span = attr.span();
+    let args = Args::from_tokens(attr)?;
     let item = parse2::<ItemStruct>(item)?;
 
-    let span = item.span();
-    let vis = item.vis;
-    let ident = item.ident;
-    let root = args.root;
-    let base = args.base;
+    let base = args
+        .base
+        .unwrap_or_else(|| Ident::new("Control", proc_macro2::Span::call_site()));
     let base_interface = format_ident!("I{}", base);
 
-    let fields = match item.fields {
-        syn::Fields::Named(fields_named) => Ok(fields_named.named),
-        syn::Fields::Unnamed(_) => Err(Error::new(span, "unnamed fields are not supported")),
-        syn::Fields::Unit => Ok(Punctuated::new()),
-    }?;
+    let (fields, mut props) = extract_fields(&item)?;
+    if let Some(forward) = args.forward {
+        props.push(quote! { #forward={gd.clone().upcast()} });
+    }
 
-    let props = fields
-        .iter()
-        .map(|field| {
-            let ident = field.ident.as_ref().unwrap();
-            quote! { #ident=self.#ident.clone() }
-        })
-        .collect::<Vec<_>>();
+    let ident = item.ident;
+    let godot_impl = if args.no_impl {
+        quote! {}
+    } else {
+        quote! {
+            #[godot_api]
+            impl #base_interface for #ident {
+                fn ready(&mut self) {
+                    self.mount_controls();
+                }
+            }
+        }
+    };
 
+    let root = args
+        .root
+        .ok_or_else(|| Error::new(attr_span, "missing `root` argument"))?;
+    let vis = item.vis;
     let gen = quote! {
       use godot::classes::#base_interface;
 
@@ -91,18 +58,112 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
       #vis struct #ident {
           grui_renderer: Option<::grui::prelude::Renderer>,
           base: godot::obj::Base<godot::classes::#base>,
-          #fields
+          #(#fields,)*
       }
 
-      #[godot_api]
-      impl #base_interface for #ident {
-          fn ready(&mut self) {
-            self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), || ::grui::prelude::control!{ <#root #(#props)* /> }));
+      impl #ident {
+          fn mount_controls(&mut self) {
+              let gd = self.to_gd();
+              self.grui_renderer = Some(::grui::prelude::Renderer::mount(&gd, || ::grui::prelude::control!{ <#root #(#props)* /> }));
           }
       }
+
+      #godot_impl
     };
 
     Ok(gen)
+}
+
+#[derive(Debug, EnumString)]
+#[strum(serialize_all = "kebab-case")]
+enum SignalForward {
+    Read,
+    Write,
+}
+
+#[derive(Debug, Default, FromAttr)]
+#[attribute(idents = [prop])]
+struct PropAttributes {
+    signal: Option<String>,
+}
+
+struct FieldProp {
+    field: Field,
+    ident: Ident,
+    attrs: PropAttributes,
+}
+
+impl FieldProp {
+    fn get_prop(&self) -> Result<TokenStream> {
+        let FieldProp { ident, .. } = self;
+        let value = if let Some(sig) = &self.attrs.signal {
+            let rw = SignalForward::from_str(sig).map_err(|err| {
+                Error::new(
+                    self.field.span(),
+                    format!("signal must be 'read' or 'write': {}", err),
+                )
+            })?;
+            match rw {
+                SignalForward::Read => quote! { self.#ident.0.clone() },
+                SignalForward::Write => quote! { self.#ident.1.clone() },
+            }
+        } else {
+            quote! { self.#ident.clone() }
+        };
+        Ok(quote! { #ident=#value })
+    }
+
+    fn get_field_type(&self) -> TokenStream {
+        let mut field = self.field.clone();
+        let mut attr = None;
+        if self.attrs.signal.is_some() {
+            let ty = field.ty.clone();
+            let def_value = quote! { ::std::default::Default::default() };
+            attr = Some(quote! { #[init(val = ::grui::prelude::signal(#def_value))] });
+            field.ty = Type::Verbatim(quote! {
+              (::grui::prelude::ReadSignal<#ty>, ::grui::prelude::WriteSignal<#ty>)
+            });
+        }
+        quote! { #attr #field }
+    }
+}
+
+fn extract_fields(item: &ItemStruct) -> Result<(Vec<TokenStream>, Vec<TokenStream>)> {
+    let mut fields = match &item.fields {
+        syn::Fields::Named(fields_named) => Ok(fields_named.named.clone()),
+        syn::Fields::Unnamed(_) => Err(Error::new(item.span(), "unnamed fields are not supported")),
+        syn::Fields::Unit => Ok(Punctuated::new()),
+    }?;
+
+    let props = fields
+        .iter_mut()
+        .map(|field| {
+            Ok(FieldProp {
+                attrs: PropAttributes::remove_attributes(&mut field.attrs)
+                    .map_err(|err| err.value)?
+                    .map(|av| av.value)
+                    .unwrap_or_default(),
+                field: field.clone(),
+                ident: field
+                    .ident
+                    .as_ref()
+                    .ok_or_else(|| Error::new(field.span(), "field must have an identifier"))?
+                    .clone(),
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    let prop_fields = props
+        .iter()
+        .map(|prop| prop.get_field_type())
+        .collect::<Vec<_>>();
+
+    let prop_list = props
+        .iter()
+        .map(|prop| prop.get_prop())
+        .collect::<Result<Vec<_>>>()?;
+
+    Ok((prop_fields, prop_list))
 }
 
 #[cfg(test)]
@@ -138,10 +199,17 @@ mod tests {
               abc: f64,
           }
 
+          impl MyStruct {
+              fn mount_controls(&mut self) {
+                let gd = self.to_gd();
+                self.grui_renderer = Some(::grui::prelude::Renderer::mount(&gd, || ::grui::prelude::control! { <App field=self.field.clone() abc=self.abc.clone() /> }));
+              }
+          }
+
           #[godot_api]
           impl IControl for MyStruct {
               fn ready(&mut self) {
-                self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), || ::grui::prelude::control! { <App field=self.field.clone() abc=self.abc.clone() /> }));
+                self.mount_controls();
               }
           }
         };
@@ -166,10 +234,17 @@ mod tests {
                 base: godot::obj::Base<godot::classes::Control>,
             }
 
+            impl Empty {
+                fn mount_controls(&mut self) {
+                  let gd = self.to_gd();
+                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&gd, || ::grui::prelude::control! { <App /> }));
+                }
+            }
+
             #[godot_api]
             impl IControl for Empty {
                 fn ready(&mut self) {
-                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), || ::grui::prelude::control! { <App /> }));
+                  self.mount_controls();
                 }
             }
         };
@@ -195,10 +270,96 @@ mod tests {
                 b: usize,
             }
 
+            impl Foo {
+                fn mount_controls(&mut self) {
+                  let gd = self.to_gd();
+                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&gd, || ::grui::prelude::control! { <MyComp a=self.a.clone() b=self.b.clone() /> }));
+                }
+            }
+
             #[godot_api]
             impl IButton for Foo {
                 fn ready(&mut self) {
-                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&self.to_gd(), || ::grui::prelude::control! { <MyComp a=self.a.clone() b=self.b.clone() /> }));
+                  self.mount_controls();
+                }
+            }
+        };
+
+        assert_eq!(pretty(output), pretty(expected));
+    }
+
+    #[test]
+    fn with_props_attributes() {
+        let args = r#"root=MyComp,forward=root"#.parse().unwrap();
+        let input = quote! {
+          struct Foo {
+            a: String,
+            #[prop(signal="read")]
+            b: usize
+          }
+        };
+        let output = transform(args, input).expect("transform ok");
+
+        let expected = quote! {
+            use godot::classes::IControl;
+
+            #[derive(godot::register::GodotClass)]
+            #[class(init, base=Control)]
+            struct Foo {
+                grui_renderer: Option<::grui::prelude::Renderer>,
+                base: godot::obj::Base<godot::classes::Control>,
+                a: String,
+                #[init(val=::grui::prelude::signal(::std::default::Default::default()))]
+                b: (::grui::prelude::ReadSignal<usize>, ::grui::prelude::WriteSignal<usize>),
+            }
+
+            impl Foo {
+                fn mount_controls(&mut self) {
+                  let gd = self.to_gd();
+                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&gd, || ::grui::prelude::control! { <MyComp a=self.a.clone() b=self.b.0.clone() root={gd.clone().upcast()} /> }));
+                }
+            }
+
+            #[godot_api]
+            impl IControl for Foo {
+                fn ready(&mut self) {
+                  self.mount_controls();
+                }
+            }
+        };
+
+        assert_eq!(pretty(output), pretty(expected));
+    }
+
+    #[test]
+    fn with_other_attrs() {
+        let args = r#"root=MyComp,no_impl"#.parse().unwrap();
+        let input = quote! {
+          struct Foo {
+            a: String,
+            #[prop(signal="write")]
+            b: usize
+          }
+        };
+        let output = transform(args, input).expect("transform ok");
+
+        let expected = quote! {
+            use godot::classes::IControl;
+
+            #[derive(godot::register::GodotClass)]
+            #[class(init, base=Control)]
+            struct Foo {
+                grui_renderer: Option<::grui::prelude::Renderer>,
+                base: godot::obj::Base<godot::classes::Control>,
+                a: String,
+                #[init(val=::grui::prelude::signal(::std::default::Default::default()))]
+                b: (::grui::prelude::ReadSignal<usize>, ::grui::prelude::WriteSignal<usize>),
+            }
+
+            impl Foo {
+                fn mount_controls(&mut self) {
+                  let gd = self.to_gd();
+                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&gd, || ::grui::prelude::control! { <MyComp a=self.a.clone() b=self.b.1.clone() /> }));
                 }
             }
         };
