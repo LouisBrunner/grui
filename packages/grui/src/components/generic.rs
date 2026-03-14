@@ -74,11 +74,15 @@ impl Display {
 pub fn Generic(
     children: ChildrenFn,
     #[prop(optional)] margin: f32,
+    #[prop(optional)] margin_x: f32,
+    #[prop(optional)] margin_y: f32,
     #[prop(optional)] margin_left: f32,
     #[prop(optional)] margin_top: f32,
     #[prop(optional)] margin_right: f32,
     #[prop(optional)] margin_bottom: f32,
     #[prop(optional)] padding: f32,
+    #[prop(optional)] padding_x: f32,
+    #[prop(optional)] padding_y: f32,
     #[prop(optional)] padding_left: f32,
     #[prop(optional)] padding_top: f32,
     #[prop(optional)] padding_right: f32,
@@ -88,6 +92,8 @@ pub fn Generic(
 ) -> impl IntoControl {
     let mut result = display.wrap(children());
     if padding.is_some()
+        || padding_x.is_some()
+        || padding_y.is_some()
         || padding_left.is_some()
         || padding_top.is_some()
         || padding_right.is_some()
@@ -95,10 +101,10 @@ pub fn Generic(
     {
         result = control! {
           <margin_container
-            theme_override_constants:margin_left=padding_left.or(padding).unwrap_or(0.0)
-            theme_override_constants:margin_top=padding_top.or(padding).unwrap_or(0.0)
-            theme_override_constants:margin_right=padding_right.or(padding).unwrap_or(0.0)
-            theme_override_constants:margin_bottom=padding_bottom.or(padding).unwrap_or(0.0)
+            theme_override_constants:margin_left=padding_left.or(padding_x).or(padding).unwrap_or(0.0)
+            theme_override_constants:margin_top=padding_top.or(padding_y).or(padding).unwrap_or(0.0)
+            theme_override_constants:margin_right=padding_right.or(padding_x).or(padding).unwrap_or(0.0)
+            theme_override_constants:margin_bottom=padding_bottom.or(padding_y).or(padding).unwrap_or(0.0)
           >
             {result}
           </margin_container>
@@ -124,10 +130,12 @@ pub fn Generic(
     // {
     result = control! {
       <margin_container
-        theme_override_constants:margin_left=margin_left.or(margin).unwrap_or(0.0)
-        theme_override_constants:margin_top=margin_top.or(margin).unwrap_or(0.0)
-        theme_override_constants:margin_right=margin_right.or(margin).unwrap_or(0.0)
-        theme_override_constants:margin_bottom=margin_bottom.or(margin).unwrap_or(0.0)
+        anchor_right=1.0
+        anchor_bottom=1.0
+        theme_override_constants:margin_left=margin_left.or(margin_x).or(margin).unwrap_or(0.0)
+        theme_override_constants:margin_top=margin_top.or(margin_y).or(margin).unwrap_or(0.0)
+        theme_override_constants:margin_right=margin_right.or(margin_x).or(margin).unwrap_or(0.0)
+        theme_override_constants:margin_bottom=margin_bottom.or(margin_y).or(margin).unwrap_or(0.0)
       >
         {result}
       </margin_container>

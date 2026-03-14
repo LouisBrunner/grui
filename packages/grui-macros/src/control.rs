@@ -153,7 +153,7 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
                 children_expr = quote! { |#pattern| #children_expr };
             } else {
                 children_expr =
-                    quote! { ::grui::prelude::ToChildren::to_children(|| #children_expr)  };
+                    quote! { ::grui::prelude::ToChildren::to_children(move || #children_expr)  };
             }
 
             fields.push(quote! { children(#children_expr) });
