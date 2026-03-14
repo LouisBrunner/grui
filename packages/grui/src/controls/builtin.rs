@@ -62,6 +62,9 @@ where
             self.signals.get_debug(),
             state.node.get_id()
         );
+        let gd = state.node.clone();
+        state.props = self.props.attach(gd.clone(), &gd.get_properties());
+        // TODO: signals?
         self.children.gather().rebuild(&mut state.children, opts);
     }
 }
