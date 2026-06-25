@@ -3,7 +3,9 @@
 `grui` lets you build declarative, reactive user interfaces for Godot in Rust.
 Inspired by React and Leptos, it combines a compact HTML-like syntax with the Godot Rust bindings to render control-based UIs.
 
-The API and DSL are inspired by [Leptos](https://www.leptos.dev/). It uses the same library for reactivity and thus provides similar features. This means you get signals (not to be confused with the Godot Signals), effects and a `<For/>` element for example.
+The API and DSL are inspired by [Leptos](https://www.leptos.dev/).
+It uses the same library for reactivity and thus provides similar features.
+This means you get signals (not to be confused with the Godot Signals), effects and a `<For/>` element for example.
 
 ## Crates
 
@@ -166,4 +168,6 @@ async fn with_reactive() {
 
 ## Acknowledgments
 
-- Leptos: which deeply influenced this project. The `grui` API is a slightly slimmed down version of the Leptops one. We also use their brilliant `reactive_graph` crate. Some of the structures/types are pretty much the same. Thank you for your amazing work!
+- Leptos: which deeply influenced this project. The `grui` API is a slightly slimmed down version of the Leptops one.
+  We also use their brilliant `reactive_graph` crate.
+  Some of the structures/types are pretty much the same. Thank you for your amazing work!
