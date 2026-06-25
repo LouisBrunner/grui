@@ -85,7 +85,7 @@ pub struct AnyState {
 }
 
 impl AnyState {
-    pub(crate) fn new<T, S>(state: T::State) -> Self
+    pub(crate) fn new<T>(state: T::State) -> Self
     where
         T: Render + 'static,
     {
@@ -147,7 +147,7 @@ where
 {
     fn into_any(self) -> AnyControl {
         fn build<T: Render + 'static>(value: Erased, opts: &BuildOptions) -> AnyState {
-            AnyState::new::<T, T::State>(value.into_inner::<T>().build(opts))
+            AnyState::new::<T>(value.into_inner::<T>().build(opts))
         }
 
         fn rebuild<T: Render + 'static>(value: Erased, state: &mut AnyState, opts: &BuildOptions) {

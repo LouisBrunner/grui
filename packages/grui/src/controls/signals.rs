@@ -32,9 +32,9 @@ where
     }
 }
 
-pub trait CompatibleFn: 'static + FnMut(&[&Variant]) -> () {}
+pub trait CompatibleFn: 'static + FnMut(&[&Variant]) {}
 
-impl<T> CompatibleFn for T where T: 'static + FnMut(&[&Variant]) -> () {}
+impl<T> CompatibleFn for T where T: 'static + FnMut(&[&Variant]) {}
 
 pub struct SignalCallable(Box<dyn CompatibleFn>);
 
@@ -51,7 +51,7 @@ impl SignalCallable {
         (self.0)(args);
     }
 
-    pub(crate) fn to_godot(self, label: &str) -> Callable {
+    pub(crate) fn into_godot(self, label: &str) -> Callable {
         let mut func = self.0;
         Callable::from_fn(&format!("{}_handler", label), move |args| {
             (func)(args);
