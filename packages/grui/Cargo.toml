@@ -13,7 +13,7 @@ indexmap = "2.13.0"
 log = "0.4.29"
 next_tuple = "0.1.0"
 reactive_graph = { version = "0.2.13", features = ["effects"] }
-similar = "2.7.0"
+similar = "3.1.1"
 strum = { version = "0.27.2", features = ["derive"] }
 typed-builder = "0.23.2"
 
