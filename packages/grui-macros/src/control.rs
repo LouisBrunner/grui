@@ -129,7 +129,7 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
         }
     }
 
-    let has_children_nodes = element.children.len() > 0;
+    let has_children_nodes = !element.children.is_empty();
 
     if children_attribute && has_children_nodes {
         return Err(Error::new(
