@@ -206,7 +206,7 @@ impl TestGraph {
         &self,
         f: &mut std::fmt::Formatter<'_>,
         id: &uuid::Uuid,
-        links: &HashMap<uuid::Uuid, Vec<&uuid::Uuid>>,
+        _links: &HashMap<uuid::Uuid, Vec<&uuid::Uuid>>,
         depth: usize,
     ) -> std::fmt::Result {
         f.write_fmt(format_args!("|{:<depth$} ", "", depth = depth * 2))?;
@@ -218,7 +218,7 @@ impl TestGraph {
             .finish()?;
         f.write_str("\n")?;
         for child in &node.children {
-            self.format_branch(f, child, links, depth + 1)?;
+            self.format_branch(f, child, _links, depth + 1)?;
         }
         Ok(())
     }
@@ -283,7 +283,7 @@ impl TestGraphHandle {
             graph
                 .nodes
                 .get(&id)
-                .expect(&format!("node not found: {}", id))
+                .unwrap_or_else(|| panic!("node not found: {}", id))
         })
     }
 
@@ -293,7 +293,7 @@ impl TestGraphHandle {
             graph
                 .nodes
                 .get_mut(&id)
-                .expect(&format!("node not found: {}", id))
+                .unwrap_or_else(|| panic!("node not found: {}", id))
         })
     }
 
@@ -308,7 +308,7 @@ impl TestGraphHandle {
     fn get_root(&self) -> TestHandle {
         let graph = self.0.borrow();
         TestHandle {
-            id: graph.root.clone(),
+            id: graph.root,
             graph: self.clone(),
         }
     }
@@ -346,7 +346,7 @@ impl TestRenderer {
             },
         );
         actions(&Self {
-            mounted: AnyState::new::<C, C::State>(mounted),
+            mounted: AnyState::new::<C>(mounted),
             owner,
             graph,
         });
@@ -373,7 +373,7 @@ impl TestRenderer {
                     },
                 );
                 actions(Self {
-                    mounted: AnyState::new::<C, C::State>(mounted),
+                    mounted: AnyState::new::<C>(mounted),
                     owner,
                     graph,
                 })

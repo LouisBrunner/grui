@@ -51,7 +51,7 @@ impl<T: Mountable> Mountable for Vec<T> {
                 }
             }
             MountPlace::AfterSibling(_) => {
-                for gd in self.into_iter().rev() {
+                for gd in self.iter_mut().rev() {
                     gd.mount(place.clone());
                 }
             }
@@ -59,7 +59,7 @@ impl<T: Mountable> Mountable for Vec<T> {
     }
 
     fn mount_after(&mut self, sibling: &mut dyn Mountable) {
-        for gd in self.into_iter().rev() {
+        for gd in self.iter_mut().rev() {
             gd.mount_after(sibling);
         }
     }

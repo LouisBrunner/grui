@@ -38,7 +38,7 @@ pub trait Render: Sized {
 }
 
 #[derive(Clone)]
-pub(crate) enum MountPlace {
+pub enum MountPlace {
     AppendToParent(Node),
     AfterSibling(Node),
 }
@@ -144,7 +144,7 @@ impl Node {
     pub(crate) fn connect(&self, key: String, func: SignalCallable) {
         match self.clone() {
             Node::Godot(mut node) => {
-                node.connect(&key, &func.to_godot(&key));
+                node.connect(&key, &func.into_godot(&key));
             }
             #[cfg(feature = "testing")]
             Node::Test(mut node) => {

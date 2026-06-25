@@ -57,7 +57,7 @@ impl Renderer {
         );
 
         Renderer {
-            mounted: AnyState::new::<C, C::State>(mounted),
+            mounted: AnyState::new::<C>(mounted),
             owner,
         }
     }

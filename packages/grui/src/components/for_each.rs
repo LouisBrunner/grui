@@ -112,7 +112,7 @@ where
     }
 }
 
-fn take_from_vec<T>(v: &mut Vec<Option<T>>, i: usize) -> Option<T> {
+fn take_from_vec<T>(v: &mut [Option<T>], i: usize) -> Option<T> {
     let mut item = None;
     std::mem::swap(&mut v[i], &mut item);
     item
