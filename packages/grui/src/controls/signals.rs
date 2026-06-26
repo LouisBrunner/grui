@@ -53,7 +53,7 @@ impl SignalCallable {
 
     pub(crate) fn into_godot(self, label: &str) -> Callable {
         let mut func = self.0;
-        Callable::from_fn(&format!("{}_handler", label), move |args| {
+        Callable::from_fn(format!("{}_handler", label), move |args| {
             (func)(args);
         })
     }

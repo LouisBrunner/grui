@@ -152,8 +152,7 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
             if let Some(pattern) = pattern_tokens {
                 children_expr = quote! { |#pattern| #children_expr };
             } else {
-                children_expr =
-                    quote! { ::godot_grui::prelude::ToChildren::to_children(move || #children_expr)  };
+                children_expr = quote! { ::godot_grui::prelude::ToChildren::to_children(move || #children_expr)  };
             }
 
             fields.push(quote! { children(#children_expr) });
@@ -284,18 +283,32 @@ fn builtin_builder(name: &NodeName) -> Result<TokenStream> {
         "vboxcontainer" | "v_box_container" => quote! { ::godot_grui::prelude::v_box_container() },
         "hboxcontainer" | "h_box_container" => quote! { ::godot_grui::prelude::h_box_container() },
         "colorpicker" | "color_picker" => quote! { ::godot_grui::prelude::color_picker() },
-        "centercontainer" | "center_container" => quote! { ::godot_grui::prelude::center_container() },
+        "centercontainer" | "center_container" => {
+            quote! { ::godot_grui::prelude::center_container() }
+        }
         "editorproperty" | "editor_property" => quote! { ::godot_grui::prelude::editor_property() },
         "flowcontainer" | "flow_container" => quote! { ::godot_grui::prelude::flow_container() },
-        "hflowcontainer" | "h_flow_container" => quote! { ::godot_grui::prelude::h_flow_container() },
-        "vflowcontainer" | "v_flow_container" => quote! { ::godot_grui::prelude::v_flow_container() },
+        "hflowcontainer" | "h_flow_container" => {
+            quote! { ::godot_grui::prelude::h_flow_container() }
+        }
+        "vflowcontainer" | "v_flow_container" => {
+            quote! { ::godot_grui::prelude::v_flow_container() }
+        }
         "gridcontainer" | "grid_container" => quote! { ::godot_grui::prelude::grid_container() },
-        "margincontainer" | "margin_container" => quote! { ::godot_grui::prelude::margin_container() },
+        "margincontainer" | "margin_container" => {
+            quote! { ::godot_grui::prelude::margin_container() }
+        }
         "panelcontainer" | "panel_container" => quote! { ::godot_grui::prelude::panel_container() },
-        "scrollcontainer" | "scroll_container" => quote! { ::godot_grui::prelude::scroll_container() },
+        "scrollcontainer" | "scroll_container" => {
+            quote! { ::godot_grui::prelude::scroll_container() }
+        }
         "splitcontainer" | "split_container" => quote! { ::godot_grui::prelude::split_container() },
-        "hsplitcontainer" | "h_split_container" => quote! { ::godot_grui::prelude::h_split_container() },
-        "vsplitcontainer" | "v_split_container" => quote! { ::godot_grui::prelude::v_split_container() },
+        "hsplitcontainer" | "h_split_container" => {
+            quote! { ::godot_grui::prelude::h_split_container() }
+        }
+        "vsplitcontainer" | "v_split_container" => {
+            quote! { ::godot_grui::prelude::v_split_container() }
+        }
         "subviewportcontainer" | "sub_viewport_container" => {
             quote! { ::godot_grui::prelude::sub_viewport_container() }
         }
@@ -619,7 +632,7 @@ mod tests {
         let expected = quote! {
             MyComp(MyCompProps::builder()
                 .children(::godot_grui::prelude::ToChildren::to_children(
-                  || ::godot_grui::prelude::button().prop("text", move || "Click me").build()
+                  move || ::godot_grui::prelude::button().prop("text", move || "Click me").build()
                 ))
                 .build()
             )

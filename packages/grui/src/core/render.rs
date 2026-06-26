@@ -3,9 +3,9 @@ use super::testing::{TestGraphHandle, TestHandle};
 use crate::{controls::signals::SignalCallable, godot::ty::GDType};
 use godot::{
     classes::Control,
-    global::PropertyUsageFlags,
     meta::ToGodot,
     obj::{EngineBitfield, Gd},
+    register::info::PropertyUsageFlags,
 };
 use std::{collections::HashSet, fmt::Debug};
 
