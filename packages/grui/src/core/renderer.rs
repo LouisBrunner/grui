@@ -48,13 +48,7 @@ impl Renderer {
 
         let parent = parent.into_arg().to_owned();
 
-        let (owner, mounted) = mount(
-            Node::Godot(parent),
-            control,
-            &BuildOptions {
-                ..Default::default()
-            },
-        );
+        let (owner, mounted) = mount(Node::Godot(parent), control, &BuildOptions::default());
 
         Renderer {
             mounted: AnyState::new::<C>(mounted),
