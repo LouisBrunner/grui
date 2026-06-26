@@ -1,5 +1,5 @@
 [package]
-name = "grui-example"
+name = "godot-grui-example"
 version.workspace = true
 edition.workspace = true
 publish = false
@@ -9,5 +9,5 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 godot = { workspace = true }
-grui = { workspace = true }
+godot-grui = { workspace = true }
 log = "0.4.29"

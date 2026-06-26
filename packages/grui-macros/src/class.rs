@@ -56,7 +56,7 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
       #[derive(godot::register::GodotClass)]
       #[class(init, base=#base)]
       #vis struct #ident {
-          grui_renderer: Option<::grui::prelude::Renderer>,
+          grui_renderer: Option<::godot_grui::prelude::Renderer>,
           base: godot::obj::Base<godot::classes::#base>,
           #(#fields,)*
       }
@@ -64,7 +64,7 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
       impl #ident {
           fn mount_controls(&mut self) {
               let gd = self.to_gd();
-              self.grui_renderer = Some(::grui::prelude::Renderer::mount(&gd, || ::grui::prelude::control!{ <#root #(#props)* /> }));
+              self.grui_renderer = Some(::godot_grui::prelude::Renderer::mount(&gd, || ::godot_grui::prelude::control!{ <#root #(#props)* /> }));
           }
       }
 
@@ -119,9 +119,9 @@ impl FieldProp {
         if self.attrs.signal.is_some() {
             let ty = field.ty.clone();
             let def_value = quote! { ::std::default::Default::default() };
-            attr = Some(quote! { #[init(val = ::grui::prelude::signal(#def_value))] });
+            attr = Some(quote! { #[init(val = ::godot_grui::prelude::signal(#def_value))] });
             field.ty = Type::Verbatim(quote! {
-              (::grui::prelude::ReadSignal<#ty>, ::grui::prelude::WriteSignal<#ty>)
+              (::godot_grui::prelude::ReadSignal<#ty>, ::godot_grui::prelude::WriteSignal<#ty>)
             });
         }
         quote! { #attr #field }
@@ -191,7 +191,7 @@ mod tests {
           #[derive(godot::register::GodotClass)]
           #[class(init, base=Control)]
           pub struct MyStruct {
-              grui_renderer: Option<::grui::prelude::Renderer>,
+              grui_renderer: Option<::godot_grui::prelude::Renderer>,
               base: godot::obj::Base<godot::classes::Control>,
               #[init(val = 10)]
               #[export]
@@ -202,7 +202,7 @@ mod tests {
           impl MyStruct {
               fn mount_controls(&mut self) {
                 let gd = self.to_gd();
-                self.grui_renderer = Some(::grui::prelude::Renderer::mount(&gd, || ::grui::prelude::control! { <App field=self.field.clone() abc=self.abc.clone() /> }));
+                self.grui_renderer = Some(::godot_grui::prelude::Renderer::mount(&gd, || ::godot_grui::prelude::control! { <App field=self.field.clone() abc=self.abc.clone() /> }));
               }
           }
 
@@ -230,14 +230,14 @@ mod tests {
             #[derive(godot::register::GodotClass)]
             #[class(init, base=Control)]
             struct Empty {
-                grui_renderer: Option<::grui::prelude::Renderer>,
+                grui_renderer: Option<::godot_grui::prelude::Renderer>,
                 base: godot::obj::Base<godot::classes::Control>,
             }
 
             impl Empty {
                 fn mount_controls(&mut self) {
                   let gd = self.to_gd();
-                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&gd, || ::grui::prelude::control! { <App /> }));
+                  self.grui_renderer = Some(::godot_grui::prelude::Renderer::mount(&gd, || ::godot_grui::prelude::control! { <App /> }));
                 }
             }
 
@@ -264,7 +264,7 @@ mod tests {
             #[derive(godot::register::GodotClass)]
             #[class(init, base=Button)]
             struct Foo {
-                grui_renderer: Option<::grui::prelude::Renderer>,
+                grui_renderer: Option<::godot_grui::prelude::Renderer>,
                 base: godot::obj::Base<godot::classes::Button>,
                 a: String,
                 b: usize,
@@ -273,7 +273,7 @@ mod tests {
             impl Foo {
                 fn mount_controls(&mut self) {
                   let gd = self.to_gd();
-                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&gd, || ::grui::prelude::control! { <MyComp a=self.a.clone() b=self.b.clone() /> }));
+                  self.grui_renderer = Some(::godot_grui::prelude::Renderer::mount(&gd, || ::godot_grui::prelude::control! { <MyComp a=self.a.clone() b=self.b.clone() /> }));
                 }
             }
 
@@ -306,17 +306,17 @@ mod tests {
             #[derive(godot::register::GodotClass)]
             #[class(init, base=Control)]
             struct Foo {
-                grui_renderer: Option<::grui::prelude::Renderer>,
+                grui_renderer: Option<::godot_grui::prelude::Renderer>,
                 base: godot::obj::Base<godot::classes::Control>,
                 a: String,
-                #[init(val=::grui::prelude::signal(::std::default::Default::default()))]
-                b: (::grui::prelude::ReadSignal<usize>, ::grui::prelude::WriteSignal<usize>),
+                #[init(val=::godot_grui::prelude::signal(::std::default::Default::default()))]
+                b: (::godot_grui::prelude::ReadSignal<usize>, ::godot_grui::prelude::WriteSignal<usize>),
             }
 
             impl Foo {
                 fn mount_controls(&mut self) {
                   let gd = self.to_gd();
-                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&gd, || ::grui::prelude::control! { <MyComp a=self.a.clone() b=self.b.0.clone() root={gd.clone().upcast()} /> }));
+                  self.grui_renderer = Some(::godot_grui::prelude::Renderer::mount(&gd, || ::godot_grui::prelude::control! { <MyComp a=self.a.clone() b=self.b.0.clone() root={gd.clone().upcast()} /> }));
                 }
             }
 
@@ -349,17 +349,17 @@ mod tests {
             #[derive(godot::register::GodotClass)]
             #[class(init, base=Control)]
             struct Foo {
-                grui_renderer: Option<::grui::prelude::Renderer>,
+                grui_renderer: Option<::godot_grui::prelude::Renderer>,
                 base: godot::obj::Base<godot::classes::Control>,
                 a: String,
-                #[init(val=::grui::prelude::signal(::std::default::Default::default()))]
-                b: (::grui::prelude::ReadSignal<usize>, ::grui::prelude::WriteSignal<usize>),
+                #[init(val=::godot_grui::prelude::signal(::std::default::Default::default()))]
+                b: (::godot_grui::prelude::ReadSignal<usize>, ::godot_grui::prelude::WriteSignal<usize>),
             }
 
             impl Foo {
                 fn mount_controls(&mut self) {
                   let gd = self.to_gd();
-                  self.grui_renderer = Some(::grui::prelude::Renderer::mount(&gd, || ::grui::prelude::control! { <MyComp a=self.a.clone() b=self.b.1.clone() /> }));
+                  self.grui_renderer = Some(::godot_grui::prelude::Renderer::mount(&gd, || ::godot_grui::prelude::control! { <MyComp a=self.a.clone() b=self.b.1.clone() /> }));
                 }
             }
         };

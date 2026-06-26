@@ -1,5 +1,5 @@
 [package]
-name = "grui"
+name = "godot-grui"
 version.workspace = true
 edition.workspace = true
 
@@ -8,7 +8,7 @@ any_spawner = { version = "0.3.0" }
 erased = "0.1.2"
 frunk = "0.4.4"
 godot = { workspace = true }
-grui-macros = { workspace = true }
+godot-grui-macros = { workspace = true }
 indexmap = "2.13.0"
 log = "0.4.29"
 next_tuple = "0.1.0"

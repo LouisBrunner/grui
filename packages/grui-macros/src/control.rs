@@ -52,7 +52,7 @@ fn transform_fragment(children: &[HtmlNode]) -> Result<TokenStream> {
 
 fn make_fragment(children: Vec<TokenStream>) -> TokenStream {
     quote! {
-      ::grui::prelude::fragment()
+      ::godot_grui::prelude::fragment()
         #(.child( #children ))*
     }
 }
@@ -153,7 +153,7 @@ fn transform_component(element: &HtmlElement) -> Result<TokenStream> {
                 children_expr = quote! { |#pattern| #children_expr };
             } else {
                 children_expr =
-                    quote! { ::grui::prelude::ToChildren::to_children(move || #children_expr)  };
+                    quote! { ::godot_grui::prelude::ToChildren::to_children(move || #children_expr)  };
             }
 
             fields.push(quote! { children(#children_expr) });
@@ -238,68 +238,68 @@ fn builtin_builder(name: &NodeName) -> Result<TokenStream> {
     };
 
     let builder = match lookup.as_str() {
-        "control" => quote! { ::grui::prelude::control() },
-        "colorrect" | "color_rect" => quote! { ::grui::prelude::color_rect() },
-        "itemlist" | "item_list" => quote! { ::grui::prelude::item_list() },
-        "label" => quote! { ::grui::prelude::label() },
-        "lineedit" | "line_edit" => quote! { ::grui::prelude::line_edit() },
-        "menubar" | "menu_bar" => quote! { ::grui::prelude::menu_bar() },
-        "ninepatchrect" | "nine_patch_rect" => quote! { ::grui::prelude::nine_patch_rect() },
-        "panel" => quote! { ::grui::prelude::panel() },
-        "referencerect" | "reference_rect" => quote! { ::grui::prelude::reference_rect() },
-        "richtextlabel" | "rich_text_label" => quote! { ::grui::prelude::rich_text_label() },
-        "tabbar" | "tab_bar" => quote! { ::grui::prelude::tab_bar() },
-        "textedit" | "text_edit" => quote! { ::grui::prelude::text_edit() },
-        "texturerect" | "texture_rect" => quote! { ::grui::prelude::texture_rect() },
-        "tree" => quote! { ::grui::prelude::tree() },
+        "control" => quote! { ::godot_grui::prelude::control() },
+        "colorrect" | "color_rect" => quote! { ::godot_grui::prelude::color_rect() },
+        "itemlist" | "item_list" => quote! { ::godot_grui::prelude::item_list() },
+        "label" => quote! { ::godot_grui::prelude::label() },
+        "lineedit" | "line_edit" => quote! { ::godot_grui::prelude::line_edit() },
+        "menubar" | "menu_bar" => quote! { ::godot_grui::prelude::menu_bar() },
+        "ninepatchrect" | "nine_patch_rect" => quote! { ::godot_grui::prelude::nine_patch_rect() },
+        "panel" => quote! { ::godot_grui::prelude::panel() },
+        "referencerect" | "reference_rect" => quote! { ::godot_grui::prelude::reference_rect() },
+        "richtextlabel" | "rich_text_label" => quote! { ::godot_grui::prelude::rich_text_label() },
+        "tabbar" | "tab_bar" => quote! { ::godot_grui::prelude::tab_bar() },
+        "textedit" | "text_edit" => quote! { ::godot_grui::prelude::text_edit() },
+        "texturerect" | "texture_rect" => quote! { ::godot_grui::prelude::texture_rect() },
+        "tree" => quote! { ::godot_grui::prelude::tree() },
         "videostreamplayer" | "video_stream_player" => {
-            quote! { ::grui::prelude::video_stream_player() }
+            quote! { ::godot_grui::prelude::video_stream_player() }
         }
-        "hseparator" | "h_separator" => quote! { ::grui::prelude::h_separator() },
-        "vseparator" | "v_separator" => quote! { ::grui::prelude::v_separator() },
-        "progressbar" | "progress_bar" => quote! { ::grui::prelude::progress_bar() },
-        "spinbox" | "spin_box" => quote! { ::grui::prelude::spin_box() },
+        "hseparator" | "h_separator" => quote! { ::godot_grui::prelude::h_separator() },
+        "vseparator" | "v_separator" => quote! { ::godot_grui::prelude::v_separator() },
+        "progressbar" | "progress_bar" => quote! { ::godot_grui::prelude::progress_bar() },
+        "spinbox" | "spin_box" => quote! { ::godot_grui::prelude::spin_box() },
         "textureprogressbar" | "texture_progress_bar" => {
-            quote! { ::grui::prelude::texture_progress_bar() }
+            quote! { ::godot_grui::prelude::texture_progress_bar() }
         }
-        "hslider" | "h_slider" => quote! { ::grui::prelude::h_slider() },
-        "vslider" | "v_slider" => quote! { ::grui::prelude::v_slider() },
-        "hscrollbar" | "h_scroll_bar" => quote! { ::grui::prelude::h_scroll_bar() },
-        "vscrollbar" | "v_scroll_bar" => quote! { ::grui::prelude::v_scroll_bar() },
-        "button" => quote! { ::grui::prelude::button() },
-        "linkbutton" | "link_button" => quote! { ::grui::prelude::link_button() },
-        "texturebutton" | "texture_button" => quote! { ::grui::prelude::texture_button() },
-        "checkbox" | "check_box" => quote! { ::grui::prelude::check_box() },
-        "checkbutton" | "check_button" => quote! { ::grui::prelude::check_button() },
+        "hslider" | "h_slider" => quote! { ::godot_grui::prelude::h_slider() },
+        "vslider" | "v_slider" => quote! { ::godot_grui::prelude::v_slider() },
+        "hscrollbar" | "h_scroll_bar" => quote! { ::godot_grui::prelude::h_scroll_bar() },
+        "vscrollbar" | "v_scroll_bar" => quote! { ::godot_grui::prelude::v_scroll_bar() },
+        "button" => quote! { ::godot_grui::prelude::button() },
+        "linkbutton" | "link_button" => quote! { ::godot_grui::prelude::link_button() },
+        "texturebutton" | "texture_button" => quote! { ::godot_grui::prelude::texture_button() },
+        "checkbox" | "check_box" => quote! { ::godot_grui::prelude::check_box() },
+        "checkbutton" | "check_button" => quote! { ::godot_grui::prelude::check_button() },
         "colorpickerbutton" | "color_picker_button" => {
-            quote! { ::grui::prelude::color_picker_button() }
+            quote! { ::godot_grui::prelude::color_picker_button() }
         }
-        "menubutton" | "menu_button" => quote! { ::grui::prelude::menu_button() },
-        "optionbutton" | "option_button" => quote! { ::grui::prelude::option_button() },
-        "container" => quote! { ::grui::prelude::container() },
+        "menubutton" | "menu_button" => quote! { ::godot_grui::prelude::menu_button() },
+        "optionbutton" | "option_button" => quote! { ::godot_grui::prelude::option_button() },
+        "container" => quote! { ::godot_grui::prelude::container() },
         "aspectratiocontainer" | "aspect_ratio_container" => {
-            quote! { ::grui::prelude::aspect_ratio_container() }
+            quote! { ::godot_grui::prelude::aspect_ratio_container() }
         }
-        "boxcontainer" | "box_container" => quote! { ::grui::prelude::box_container() },
-        "vboxcontainer" | "v_box_container" => quote! { ::grui::prelude::v_box_container() },
-        "hboxcontainer" | "h_box_container" => quote! { ::grui::prelude::h_box_container() },
-        "colorpicker" | "color_picker" => quote! { ::grui::prelude::color_picker() },
-        "centercontainer" | "center_container" => quote! { ::grui::prelude::center_container() },
-        "editorproperty" | "editor_property" => quote! { ::grui::prelude::editor_property() },
-        "flowcontainer" | "flow_container" => quote! { ::grui::prelude::flow_container() },
-        "hflowcontainer" | "h_flow_container" => quote! { ::grui::prelude::h_flow_container() },
-        "vflowcontainer" | "v_flow_container" => quote! { ::grui::prelude::v_flow_container() },
-        "gridcontainer" | "grid_container" => quote! { ::grui::prelude::grid_container() },
-        "margincontainer" | "margin_container" => quote! { ::grui::prelude::margin_container() },
-        "panelcontainer" | "panel_container" => quote! { ::grui::prelude::panel_container() },
-        "scrollcontainer" | "scroll_container" => quote! { ::grui::prelude::scroll_container() },
-        "splitcontainer" | "split_container" => quote! { ::grui::prelude::split_container() },
-        "hsplitcontainer" | "h_split_container" => quote! { ::grui::prelude::h_split_container() },
-        "vsplitcontainer" | "v_split_container" => quote! { ::grui::prelude::v_split_container() },
+        "boxcontainer" | "box_container" => quote! { ::godot_grui::prelude::box_container() },
+        "vboxcontainer" | "v_box_container" => quote! { ::godot_grui::prelude::v_box_container() },
+        "hboxcontainer" | "h_box_container" => quote! { ::godot_grui::prelude::h_box_container() },
+        "colorpicker" | "color_picker" => quote! { ::godot_grui::prelude::color_picker() },
+        "centercontainer" | "center_container" => quote! { ::godot_grui::prelude::center_container() },
+        "editorproperty" | "editor_property" => quote! { ::godot_grui::prelude::editor_property() },
+        "flowcontainer" | "flow_container" => quote! { ::godot_grui::prelude::flow_container() },
+        "hflowcontainer" | "h_flow_container" => quote! { ::godot_grui::prelude::h_flow_container() },
+        "vflowcontainer" | "v_flow_container" => quote! { ::godot_grui::prelude::v_flow_container() },
+        "gridcontainer" | "grid_container" => quote! { ::godot_grui::prelude::grid_container() },
+        "margincontainer" | "margin_container" => quote! { ::godot_grui::prelude::margin_container() },
+        "panelcontainer" | "panel_container" => quote! { ::godot_grui::prelude::panel_container() },
+        "scrollcontainer" | "scroll_container" => quote! { ::godot_grui::prelude::scroll_container() },
+        "splitcontainer" | "split_container" => quote! { ::godot_grui::prelude::split_container() },
+        "hsplitcontainer" | "h_split_container" => quote! { ::godot_grui::prelude::h_split_container() },
+        "vsplitcontainer" | "v_split_container" => quote! { ::godot_grui::prelude::v_split_container() },
         "subviewportcontainer" | "sub_viewport_container" => {
-            quote! { ::grui::prelude::sub_viewport_container() }
+            quote! { ::godot_grui::prelude::sub_viewport_container() }
         }
-        "tabcontainer" | "tab_container" => quote! { ::grui::prelude::tab_container() },
+        "tabcontainer" | "tab_container" => quote! { ::godot_grui::prelude::tab_container() },
         other => {
             return Err(Error::new(
                 name.span(),
@@ -415,14 +415,14 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::fragment()
-              .child(::grui::prelude::panel().build())
-              .child(::grui::prelude::v_box_container()
-                .child(::grui::prelude::button().on("click", resume).prop("text", move || "Resume").build())
-                .child(::grui::prelude::button().prop("text", move || "Save").build())
+            ::godot_grui::prelude::fragment()
+              .child(::godot_grui::prelude::panel().build())
+              .child(::godot_grui::prelude::v_box_container()
+                .child(::godot_grui::prelude::button().on("click", resume).prop("text", move || "Resume").build())
+                .child(::godot_grui::prelude::button().prop("text", move || "Save").build())
                 .child(
-                  ::grui::prelude::fragment()
-                    .child(::grui::prelude::button().prop("text", move || "Load").build())
+                  ::godot_grui::prelude::fragment()
+                    .child(::godot_grui::prelude::button().prop("text", move || "Load").build())
                 )
                 .build()
               )
@@ -439,7 +439,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::button().prop("text", move || "Click me").build()
+            ::godot_grui::prelude::button().prop("text", move || "Click me").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -453,7 +453,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::button().on("pressed", on_pressed).prop("text", move || "Save").build()
+            ::godot_grui::prelude::button().on("pressed", on_pressed).prop("text", move || "Save").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -469,7 +469,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::button().on("pressed", { Callable::from_fn(| | { counter.mutate(|c| *c += 1); }) }).prop("text", move || "Save").build()
+            ::godot_grui::prelude::button().on("pressed", { Callable::from_fn(| | { counter.mutate(|c| *c += 1); }) }).prop("text", move || "Save").build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -483,7 +483,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::label().prop("text", move || format!("{} {}", title, i)).build()
+            ::godot_grui::prelude::label().prop("text", move || format!("{} {}", title, i)).build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -515,10 +515,10 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::v_box_container()
-              .child(::grui::prelude::button().prop("text", move || "One").build())
-              .child(::grui::prelude::button().prop("text", move || "Two").build())
-              .child(::grui::prelude::button().prop("text", move || "Three").build())
+            ::godot_grui::prelude::v_box_container()
+              .child(::godot_grui::prelude::button().prop("text", move || "One").build())
+              .child(::godot_grui::prelude::button().prop("text", move || "Two").build())
+              .child(::godot_grui::prelude::button().prop("text", move || "Three").build())
               .build()
         };
 
@@ -541,7 +541,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::v_box_container().child(
+            ::godot_grui::prelude::v_box_container().child(
               #[allow (unused_braces)]
               { (1..=10).map(|i| { control! { <label text=format!("{} {}", title, i) />} }).collect::<Vec<_> >() }
             ).build()
@@ -563,7 +563,7 @@ mod tests {
               ForProps::builder()
                 .each(| | (1..=5))
                 .key(|i| *i)
-                .children(|i| ::grui::prelude::label().prop("text", move || format!("Item {}", i)).build())
+                .children(|i| ::godot_grui::prelude::label().prop("text", move || format!("Item {}", i)).build())
                 .build()
             )
         };
@@ -578,7 +578,7 @@ mod tests {
 
         let output = transform(input).expect("transform ok");
         let expected = quote! {
-            ::grui::prelude::panel().build()
+            ::godot_grui::prelude::panel().build()
         };
 
         assert_eq!(pretty(output), pretty(expected));
@@ -618,8 +618,8 @@ mod tests {
         let output = transform(input).expect("transform ok");
         let expected = quote! {
             MyComp(MyCompProps::builder()
-                .children(::grui::prelude::ToChildren::to_children(
-                  || ::grui::prelude::button().prop("text", move || "Click me").build()
+                .children(::godot_grui::prelude::ToChildren::to_children(
+                  || ::godot_grui::prelude::button().prop("text", move || "Click me").build()
                 ))
                 .build()
             )

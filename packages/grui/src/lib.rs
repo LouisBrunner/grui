@@ -5,14 +5,14 @@ pub(crate) mod godot;
 mod tests;
 pub(crate) mod utils;
 
-extern crate self as grui;
+extern crate self as godot_grui;
 
 pub mod prelude {
     pub use crate::components::*;
     pub use crate::controls::*;
     pub use crate::core::*;
     pub use crate::godot::classes::*;
-    pub use grui_macros::*;
+    pub use godot_grui_macros::*;
 }
 
 #[doc(hidden)]

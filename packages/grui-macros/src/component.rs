@@ -1,4 +1,5 @@
 use convert_case::{Case, Casing};
+use convert_case_extras::is_case;
 use from_attr::FromAttr;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -77,8 +78,8 @@ fn transform_props(
 
     let vis = function.vis.clone();
     let props = quote! {
-        #[derive(Debug, ::grui::internal::typed_builder::TypedBuilder)]
-        #[builder(crate_module_path=::grui::internal::typed_builder)]
+        #[derive(Debug, ::godot_grui::internal::typed_builder::TypedBuilder)]
+        #[builder(crate_module_path=::godot_grui::internal::typed_builder)]
         #vis struct #props_ident #impl_generics #where_clause {
             #(#prop_fields,)*
         }
@@ -165,7 +166,7 @@ fn extract_props(sig: &syn::Signature) -> Result<Vec<Prop>> {
 
 fn make_snake_case(name: &Ident) -> Ident {
     let name_str = name.to_string();
-    if !name_str.is_case(Case::Snake) {
+    if !is_case(&name_str, Case::Snake) {
         name.clone()
     } else {
         Ident::new(&name_str.to_case(Case::Pascal), name.span())
@@ -191,8 +192,8 @@ mod tests {
         };
 
         let expected = quote! {
-            #[derive(Debug, ::grui::internal::typed_builder::TypedBuilder)]
-            #[builder(crate_module_path = ::grui::internal::typed_builder)]
+            #[derive(Debug, ::godot_grui::internal::typed_builder::TypedBuilder)]
+            #[builder(crate_module_path = ::godot_grui::internal::typed_builder)]
             pub struct ButtonProps {
                 pub label: String,
                 pub disabled: bool,
@@ -225,8 +226,8 @@ mod tests {
         };
 
         let expected = quote! {
-            #[derive(Debug, ::grui::internal::typed_builder::TypedBuilder)]
-            #[builder(crate_module_path = ::grui::internal::typed_builder)]
+            #[derive(Debug, ::godot_grui::internal::typed_builder::TypedBuilder)]
+            #[builder(crate_module_path = ::godot_grui::internal::typed_builder)]
             struct MenuButtonProps {
                 pub label: String,
                 pub on_pressed: Callable,
@@ -257,8 +258,8 @@ mod tests {
         };
 
         let expected = quote! {
-            #[derive(Debug, ::grui::internal::typed_builder::TypedBuilder)]
-            #[builder(crate_module_path = ::grui::internal::typed_builder)]
+            #[derive(Debug, ::godot_grui::internal::typed_builder::TypedBuilder)]
+            #[builder(crate_module_path = ::godot_grui::internal::typed_builder)]
             struct SimpleButtonProps { }
 
             #[allow(non_snake_case)]
@@ -283,8 +284,8 @@ mod tests {
         };
 
         let expected = quote! {
-            #[derive(Debug, ::grui::internal::typed_builder::TypedBuilder)]
-            #[builder(crate_module_path = ::grui::internal::typed_builder)]
+            #[derive(Debug, ::godot_grui::internal::typed_builder::TypedBuilder)]
+            #[builder(crate_module_path = ::godot_grui::internal::typed_builder)]
             struct SimpleButtonProps<S> where S: Into<String> {
               pub label: S,
             }
@@ -307,8 +308,8 @@ mod tests {
         let input = quote! { fn foo(bar: i32, children: String) -> impl IntoControl { control! {<label max_lines_visible=bar text=children />} } };
         let output = transform(args, input).expect("ok");
         let expected = quote! {
-            #[derive(Debug, ::grui::internal::typed_builder::TypedBuilder)]
-            #[builder(crate_module_path = ::grui::internal::typed_builder)]
+            #[derive(Debug, ::godot_grui::internal::typed_builder::TypedBuilder)]
+            #[builder(crate_module_path = ::godot_grui::internal::typed_builder)]
             struct FooProps {
                 pub bar: i32,
                 pub children: String,

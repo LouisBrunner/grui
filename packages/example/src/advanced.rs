@@ -1,5 +1,5 @@
 use godot::prelude::*;
-use grui::prelude::*;
+use godot_grui::prelude::*;
 
 #[component]
 fn AdvancedComp(root: Gd<Advanced>, some_data: ReadSignal<usize>) -> impl IntoControl {
@@ -14,7 +14,7 @@ fn AdvancedComp(root: Gd<Advanced>, some_data: ReadSignal<usize>) -> impl IntoCo
     }
 }
 
-#[::grui::prelude::class(root=AdvancedComp,forward=root)]
+#[::godot_grui::prelude::class(root=AdvancedComp,forward=root)]
 struct Advanced {
     #[prop(signal = "read")]
     some_data: usize,

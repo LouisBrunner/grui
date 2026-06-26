@@ -13,5 +13,10 @@ jobs:
   configs:
     uses: LouisBrunner/.github/.github/workflows/lint-configs.yml@main
 
-  rust:
+  vet:
     uses: LouisBrunner/.github/.github/workflows/lint-rust.yml@main
+
+  test:
+    uses: LouisBrunner/.github/.github/workflows/lint-rust.yml@main
+    with:
+      run: cargo test

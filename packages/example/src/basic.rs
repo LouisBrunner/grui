@@ -1,5 +1,5 @@
 use godot::{classes::control::SizeFlags, global::HorizontalAlignment, prelude::*};
-use grui::prelude::*;
+use godot_grui::prelude::*;
 use std::fmt::Debug;
 
 #[component]
@@ -126,5 +126,5 @@ fn Basic() -> impl IntoControl {
     }
 }
 
-#[grui::prelude::class(root=Basic)]
+#[godot_grui::prelude::class(root=Basic)]
 pub struct PauseMenu {}

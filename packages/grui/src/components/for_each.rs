@@ -3,7 +3,7 @@ use crate::{
     core::render::{BuildOptions, MountPlace, Mountable, Node, Render},
     godot::ty::GDType,
 };
-use grui::prelude::*;
+use godot_grui::prelude::*;
 use indexmap::IndexSet;
 use std::hash::Hash;
 

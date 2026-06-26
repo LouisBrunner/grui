@@ -1,4 +1,4 @@
-use grui::prelude::*;
+use godot_grui::prelude::*;
 
 #[component]
 pub fn Show<W>(

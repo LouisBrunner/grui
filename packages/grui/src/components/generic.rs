@@ -1,5 +1,5 @@
 use godot::{classes::StyleBoxFlat, prelude::*};
-use grui::prelude::*;
+use godot_grui::prelude::*;
 
 use crate::prelude::any::AnyControl;
 

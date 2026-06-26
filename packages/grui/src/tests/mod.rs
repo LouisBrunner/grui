@@ -1,7 +1,7 @@
 #[cfg(feature = "testing")]
 #[cfg(test)]
 mod tests {
-    use grui::{prelude::*, testing::*};
+    use godot_grui::{prelude::*, testing::*};
     use pretty_assertions::assert_eq;
     use std::sync::{atomic::AtomicUsize, Arc};
 

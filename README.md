@@ -1,6 +1,6 @@
-# grui
+# godot-grui
 
-`grui` lets you build declarative, reactive user interfaces for Godot in Rust.
+`godot-grui` lets you build declarative, reactive user interfaces for Godot in Rust.
 Inspired by React and Leptos, it combines a compact HTML-like syntax with the Godot Rust bindings to render control-based UIs.
 
 The API and DSL are inspired by [Leptos](https://www.leptos.dev/).
@@ -11,14 +11,14 @@ This means you get signals (not to be confused with the Godot Signals), effects 
 
 The workspace contains two crates:
 
-- `grui`: contains the `Renderer` and all the reactive elements, it provides a `prelude` which also imports the `grui-macros`.
-- `grui-macros`: provides the `control!` macro and `#[component]` and `#[class]` attributes.
+- `godot-grui`: contains the `Renderer` and all the reactive elements, it provides a `prelude` which also imports the `grui-macros`.
+- `godot-grui-macros`: provides the `control!` macro and `#[component]` and `#[class]` attributes.
 
 ## Quick start
 
 ```rust
 use godot::prelude::*;
-use grui::prelude::*;
+use godot_grui::prelude::*;
 
 // easily create custom component (with automatic into conversion of prop)
 #[component]
@@ -91,7 +91,7 @@ fn PauseMenu(#[prop(optional) title: String) -> impl IntoControl {
 }
 
 // this struct can now be used directly in the Godot Editor
-#[grui::prelude::class(root=PauseMenu)]
+#[godot_grui::prelude::class(root=PauseMenu)]
 pub struct HUDRoot {
     // properties are given as props to the root component
     #[export]
@@ -168,6 +168,6 @@ async fn with_reactive() {
 
 ## Acknowledgments
 
-- Leptos: which deeply influenced this project. The `grui` API is a slightly slimmed down version of the Leptops one.
+- Leptos: which deeply influenced this project. The `godot-grui` API is a slightly slimmed down version of the Leptops one.
   We also use their brilliant `reactive_graph` crate.
   Some of the structures/types are pretty much the same. Thank you for your amazing work!
