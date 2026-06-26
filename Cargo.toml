@@ -5,6 +5,8 @@ members = ["packages/example", "packages/grui", "packages/grui-macros"]
 [workspace.package]
 version = "0.0.1"
 edition = "2021"
+license = "MPL-2.0"
+repository = "https://github.com/LouisBrunner/grui"
 
 [workspace.dependencies]
 godot = "0.5.4"

@@ -2,6 +2,12 @@
 name = "godot-grui"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Reactive, declarative UI framework for Godot 4 in Rust"
+keywords = ["godot", "ui", "reactive", "gdextension", "gamedev"]
+categories = ["game-development", "gui"]
+readme = "README.md"
 
 [dependencies]
 any_spawner = { version = "0.3.0" }
@@ -27,7 +33,7 @@ pretty_assertions = { workspace = true }
 test-log = { version = "0.2" }
 
 [features]
-default = ["testing"]
+default = []
 testing = [
   "any_spawner/futures-executor",
   "any_spawner/tokio",

@@ -19,4 +19,4 @@ jobs:
   test:
     uses: LouisBrunner/.github/.github/workflows/lint-rust.yml@main
     with:
-      run: cargo test
+      run: cargo test --features testing
