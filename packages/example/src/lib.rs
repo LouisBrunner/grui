@@ -14,4 +14,5 @@ unsafe impl ExtensionLibrary for BasicExtension {
     }
 }
 
-static LOGGER: godot_grui::internal::logger::GodotLogger = godot_grui::internal::logger::GodotLogger {};
+static LOGGER: godot_grui::internal::logger::GodotLogger =
+    godot_grui::internal::logger::GodotLogger {};
