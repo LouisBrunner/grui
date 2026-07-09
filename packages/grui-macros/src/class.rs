@@ -50,7 +50,7 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
         .root
         .ok_or_else(|| Error::new(attr_span, "missing `root` argument"))?;
     let vis = item.vis;
-    let gen = quote! {
+    let generated = quote! {
       use godot::classes::#base_interface;
 
       #[derive(godot::register::GodotClass)]
@@ -71,7 +71,7 @@ pub fn transform(attr: TokenStream, item: TokenStream) -> Result<TokenStream> {
       #godot_impl
     };
 
-    Ok(gen)
+    Ok(generated)
 }
 
 #[derive(Debug, EnumString)]
