@@ -2,7 +2,7 @@
 
 Proc macros for [`godot-grui`](https://crates.io/crates/godot-grui).
 
-You don't need to depend on this crate directly — `godot-grui` re-exports everything via its prelude.
+You don't need to depend on this crate directly — `godot-grui` reexports everything via its prelude.
 
 ## Macros
 
