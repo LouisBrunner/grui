@@ -28,8 +28,12 @@ impl log::Log for GodotLogger {
             record.args()
         );
         match record.level() {
-            log::Level::Error => godot_error!("{}", formatted),
-            log::Level::Warn => godot_warn!("{}", formatted),
+            log::Level::Error => {
+                godot_error!("{}", formatted);
+            }
+            log::Level::Warn => {
+                godot_warn!("{}", formatted);
+            }
             log::Level::Info => godot_print!("INFO : {}", formatted),
             log::Level::Debug => godot_print!("DEBUG: {}", formatted),
             log::Level::Trace => godot_print!("TRACE: {}", formatted),
